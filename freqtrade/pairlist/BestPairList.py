@@ -90,6 +90,7 @@ class BestPairList(IPairList):
                     if (self._exchange.get_pair_quote_currency(k) == self._stake_currency)]
             pairlist = [s['symbol'] for s in filtered_tickers]
 
+            # Seek for the right pairs accordign to the next logic.
             pairs_performance = []
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=self.since_date)
