@@ -263,6 +263,7 @@ class Trade(_DECL_BASE):
             'fee_close_currency': self.fee_close_currency,
 
             'open_date_hum': arrow.get(self.open_date).humanize(),
+            'open_date_minutes': abs(self.open_date.timestamp() - datetime.now().timestamp())//60,
             'open_date': self.open_date.strftime("%Y-%m-%d %H:%M:%S"),
             'open_timestamp': int(self.open_date.timestamp() * 1000),
             'open_rate': self.open_rate,

@@ -8,8 +8,12 @@ from enum import Enum
 from math import isnan
 from typing import Any, Dict, List, Optional, Tuple
 
+import ccxt
 import arrow
 from numpy import NAN, mean
+from technical.indicators import fibonacci_retracements
+import trendln
+import pandas as pd
 
 from freqtrade.exceptions import DependencyException, TemporaryError
 from freqtrade.misc import shorten_date
@@ -17,6 +21,7 @@ from freqtrade.persistence import Trade
 from freqtrade.rpc.fiat_convert import CryptoToFiatConverter
 from freqtrade.state import State
 from freqtrade.strategy.interface import SellType
+from freqtrade.data.converter import ohlcv_to_dataframe
 
 logger = logging.getLogger(__name__)
 
@@ -143,10 +148,35 @@ class RPC:
                 fmt_close_profit = (f'{round(trade.close_profit * 100, 2):.2f}%'
                                     if trade.close_profit is not None else None)
                 trade_dict = trade.to_json()
+
+                timeframe = self._freqtrade.config['ticker_interval']
+                since_date = int(datetime.timestamp(datetime.now() - timedelta(days=4)) * 1000) # MS
+
+                one_call = int((ccxt.Exchange.parse_timeframe(timeframe) * 1000) * 500) # limit
+
+                ohlcvs = []
+
+                for since in range(since_date, int(datetime.utcnow().timestamp() * 1000), one_call):
+                    ohlcvs = ohlcvs + self._freqtrade.exchange._api.fetch_ohlcv(trade.pair, timeframe, since)
+
+                ohlcv = ohlcv_to_dataframe(ohlcvs, timeframe, trade.pair, fill_missing=False, drop_incomplete=True)
+
+                # Fibonnacci retracements S/R
+                fibonnacci = fibonacci_retracements(ohlcv)
+                fibonnacci = fibonnacci[len(fibonnacci)-1]
+                # Trendline new
+                mins, maxs = trendln.calc_support_resistance(ohlcv['close'])
+                (minimaIdxs, _, _, _), (maximaIdxs, _, _, _) = mins, maxs
+                support = ohlcv['close'].values[minimaIdxs[len(minimaIdxs)-1]]
+                resistance = ohlcv['close'].values[maximaIdxs[len(maximaIdxs)-1]]
+
                 trade_dict.update(dict(
                     base_currency=self._freqtrade.config['stake_currency'],
                     close_profit=trade.close_profit if trade.close_profit is not None else None,
                     close_profit_pct=fmt_close_profit,
+                    fibonnacci=fibonnacci,
+                    support=support,
+                    resistance=resistance,
                     current_rate=current_rate,
                     current_profit=current_profit,
                     current_profit_pct=round(current_profit * 100, 2),

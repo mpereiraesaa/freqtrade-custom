@@ -13,6 +13,8 @@ TA-Lib==0.4.18
 tabulate==0.8.7
 pycoingecko==1.2.0
 jinja2==2.11.2
+technical==1.1.0
+trendln==0.1.10
 
 # find first, C search in arrays
 py_find_1st==1.1.4

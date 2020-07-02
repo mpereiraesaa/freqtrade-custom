@@ -675,7 +675,7 @@ class Exchange:
                 data.extend(res)
         # Sort data again after extending the result - above calls return in "async order"
         data = sorted(data, key=lambda x: x[0])
-        logger.info("Downloaded data for %s with length %s.", pair, len(data))
+        # logger.info("Downloaded data for %s with length %s.", pair, len(data))
         return data
 
     def refresh_latest_ohlcv(self, pair_list: ListPairsWithTimeframes) -> List[Tuple[str, List]]:
