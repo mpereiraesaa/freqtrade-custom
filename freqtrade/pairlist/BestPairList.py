@@ -115,8 +115,11 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 0.01]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            best_pairs = best_pairs[:self._number_pairs]
+            # Top 25 by ATR
+            best_pairs = best_pairs[:25]
             pairlist = best_pairs['pair'].values.tolist()
+            random.shuffle(pairlist)
+            pairlist = pairlist[:self._number_pairs]
         else:
             # Use the cached pairlist if it's not time yet to refresh
             pairlist = cached_pairlist
@@ -133,8 +136,6 @@ class BestPairList(IPairList):
         """
         # Validate whitelist to only have active market pairs
         pairs = self.verify_blacklist(pairlist, logger.info)
-        # Limit pairlist to the requested number of pairs
-        random.shuffle(pairs)
 
         self.log_on_refresh(logger.info, f"Searching {self._number_pairs} pairs: {pairs}")
 
