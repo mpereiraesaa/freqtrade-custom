@@ -3,6 +3,7 @@ Volume PairList provider
 
 Provides dynamic pair list based on trade volumes
 """
+import random
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -31,7 +32,7 @@ class BestPairList(IPairList):
                 'for "pairlist.config.number_assets"')
 
         self._stake_currency = config['stake_currency']
-        self._number_pairs = np.random.randint(8, 25)
+        self._number_pairs = np.random.randint(10, 25)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
         self.refresh_period = 7200 # seconds
@@ -134,6 +135,7 @@ class BestPairList(IPairList):
         pairs = self.verify_blacklist(pairlist, logger.info)
         # Limit pairlist to the requested number of pairs
         pairs = pairs[:self._number_pairs]
+        random.shuffle(pairs)
 
         self.log_on_refresh(logger.info, f"Searching {self._number_pairs} pairs: {pairs}")
 
