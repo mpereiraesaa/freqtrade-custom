@@ -32,7 +32,6 @@ from freqtrade.wallets import Wallets
 
 logger = logging.getLogger(__name__)
 
-
 class FreqtradeBot:
     """
     Freqtrade is the main class of the bot.
@@ -98,6 +97,11 @@ class FreqtradeBot:
         self.rpc: RPCManager = RPCManager(self)
         # Protect sell-logic from forcesell and viceversa
         self._sell_lock = Lock()
+        pair_list_str = ', '.join(self.active_pair_whitelist)
+        self.rpc.send_msg({
+            'type': RPCMessageType.STATUS_NOTIFICATION,
+            'status': f'Found new whitelist: {pair_list_str}'
+        })
 
     def notify_status(self, msg: str) -> None:
         """

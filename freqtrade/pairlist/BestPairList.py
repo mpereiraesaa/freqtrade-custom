@@ -115,7 +115,7 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 0.01]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            best_pairs = best_pairs[0:25]
+            best_pairs = best_pairs[:self._number_pairs]
             pairlist = best_pairs['pair'].values.tolist()
         else:
             # Use the cached pairlist if it's not time yet to refresh
@@ -135,7 +135,6 @@ class BestPairList(IPairList):
         pairs = self.verify_blacklist(pairlist, logger.info)
         # Limit pairlist to the requested number of pairs
         random.shuffle(pairs)
-        pairs = pairs[:self._number_pairs]
 
         self.log_on_refresh(logger.info, f"Searching {self._number_pairs} pairs: {pairs}")
 
