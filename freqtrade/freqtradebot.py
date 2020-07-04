@@ -151,10 +151,12 @@ class FreqtradeBot:
         self.dataprovider.refresh(self.pairlists.create_pair_list(self.active_pair_whitelist),
                                   self.strategy.informative_pairs())
 
-        msg = "Using new whitelist: \n"
-        msg += f"`{', '.join(self.active_pair_whitelist)}`"
+        pair_list_str = ', '.join(self.active_pair_whitelist)
 
-        self.rpc.send_msg(msg)
+        self.rpc.send_msg({
+            'type': RPCMessageType.STATUS_NOTIFICATION,
+            'status': f'Using new whitelist: {pair_list_str}'
+        })
 
         with self._sell_lock:
             # Check and handle any timed out open orders
