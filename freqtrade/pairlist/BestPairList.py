@@ -31,13 +31,13 @@ class BestPairList(IPairList):
                 'for "pairlist.config.number_assets"')
 
         self._stake_currency = config['stake_currency']
-        self._number_pairs = self._pairlistconfig['number_assets']
+        self._number_pairs = np.random.randint(8, 25)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
         self.refresh_period = 7200 # seconds
         self.timeframe = config['ticker_interval']
         # last 4 days 
-        self.since_date = int(datetime.timestamp(datetime.now() - timedelta(days=4)) * 1000) # MS
+        self.since_date = int(datetime.timestamp(datetime.now() - timedelta(days=3)) * 1000) # MS
 
         if not self._exchange.exchange_has('fetchTickers'):
             raise OperationalException(
@@ -109,10 +109,13 @@ class BestPairList(IPairList):
                         "avg_atr": avg_atr,
                     })
 
-            pairs_performance = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr'])
-            pairs_performance.sort_values('avg_atr', ascending=False, inplace=True)
-            positive_avg_change_pairs = pairs_performance[pairs_performance['avg_rate_change'] > 0]
-            pairlist = positive_avg_change_pairs.iloc[0:self._number_pairs]['pair'].values.tolist()
+            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr'])
+            best_pairs = best_pairs[best_pairs['avg_rate_change'] > 0]
+            best_pairs = best_pairs[best_pairs['avg_atr'] <= 0.01]
+            best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
+            best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
+            best_pairs = best_pairs[0:25]
+            pairlist = best_pairs['pair'].values.tolist()
         else:
             # Use the cached pairlist if it's not time yet to refresh
             pairlist = cached_pairlist
@@ -127,18 +130,8 @@ class BestPairList(IPairList):
         :param tickers: Tickers (from exchange.get_tickers()). May be cached.
         :return: new whitelist
         """
-        # Use the incoming pairlist.
-        filtered_tickers = [v for k, v in tickers.items() if k in pairlist]
-
-        if self._min_value > 0:
-            filtered_tickers = [
-                    v for v in filtered_tickers if v[self._sort_key] > self._min_value]
-
-        sorted_tickers = sorted(filtered_tickers, reverse=True, key=lambda t: t[self._sort_key])
-
         # Validate whitelist to only have active market pairs
-        pairs = self._whitelist_for_active_markets([s['symbol'] for s in sorted_tickers])
-        pairs = self.verify_blacklist(pairs, logger.info)
+        pairs = self.verify_blacklist(pairlist, logger.info)
         # Limit pairlist to the requested number of pairs
         pairs = pairs[:self._number_pairs]
 
