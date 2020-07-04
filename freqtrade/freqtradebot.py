@@ -145,18 +145,20 @@ class FreqtradeBot:
         # Query trades from persistence layer
         trades = Trade.get_open_trades()
 
-        self.active_pair_whitelist = self._refresh_active_whitelist(trades)
+        new_pair_whitelist = self._refresh_active_whitelist(trades)
+
+        if all(x in self.active_pair_whitelist for x in new_pair_whitelist) == False:
+            pair_list_str = ', '.join(new_pair_whitelist)
+            self.rpc.send_msg({
+                'type': RPCMessageType.STATUS_NOTIFICATION,
+                'status': f'Found new whitelist: {pair_list_str}'
+            })
+
+        self.active_pair_whitelist = new_pair_whitelist
 
         # Refreshing candles
         self.dataprovider.refresh(self.pairlists.create_pair_list(self.active_pair_whitelist),
                                   self.strategy.informative_pairs())
-
-        pair_list_str = ', '.join(self.active_pair_whitelist)
-
-        self.rpc.send_msg({
-            'type': RPCMessageType.STATUS_NOTIFICATION,
-            'status': f'Using new whitelist: {pair_list_str}'
-        })
 
         with self._sell_lock:
             # Check and handle any timed out open orders

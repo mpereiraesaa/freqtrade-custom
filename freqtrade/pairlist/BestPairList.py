@@ -134,8 +134,8 @@ class BestPairList(IPairList):
         # Validate whitelist to only have active market pairs
         pairs = self.verify_blacklist(pairlist, logger.info)
         # Limit pairlist to the requested number of pairs
-        pairs = pairs[:self._number_pairs]
         random.shuffle(pairs)
+        pairs = pairs[:self._number_pairs]
 
         self.log_on_refresh(logger.info, f"Searching {self._number_pairs} pairs: {pairs}")
 
