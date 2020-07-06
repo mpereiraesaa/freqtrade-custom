@@ -32,13 +32,11 @@ class BestPairList(IPairList):
                 'for "pairlist.config.number_assets"')
 
         self._stake_currency = config['stake_currency']
-        self._number_pairs = np.random.randint(10, 25)
+        self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
         self.refresh_period = 7200 # seconds
         self.timeframe = config['ticker_interval']
-        # last 4 days 
-        self.since_date = int(datetime.timestamp(datetime.now() - timedelta(days=3)) * 1000) # MS
 
         if not self._exchange.exchange_has('fetchTickers'):
             raise OperationalException(
@@ -83,18 +81,20 @@ class BestPairList(IPairList):
         # Generate dynamic whitelist
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
+            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=3)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
-            filtered_tickers = [
-                    v for k, v in tickers.items()
-                    if (self._exchange.get_pair_quote_currency(k) == self._stake_currency)]
-            pairlist = [s['symbol'] for s in filtered_tickers]
+            pairlist = []
+            for trading_pair in self._exchange._api.load_markets():
+                quote = trading_pair.split('/')[1]
+                if quote == 'USDT':
+                    pairlist.append(trading_pair)
 
             # Seek for the right pairs accordign to the next logic.
             pairs_performance = []
             for pair in pairlist:
-                new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=self.since_date)
+                new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair,
                 fill_missing=False, drop_incomplete=True)
                 if len(ohlcv) > 0:
@@ -115,8 +115,8 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 0.01]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            # Top 25 by ATR
-            best_pairs = best_pairs[:25]
+            # Top 18 by ATR
+            best_pairs = best_pairs[:18]
             pairlist = best_pairs['pair'].values.tolist()
             random.shuffle(pairlist)
             pairlist = pairlist[:self._number_pairs]
