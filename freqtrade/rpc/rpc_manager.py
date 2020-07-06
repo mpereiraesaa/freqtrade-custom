@@ -62,6 +62,10 @@ class RPCManager:
                 logger.error(f"Message type {msg['type']} not implemented by handler {mod.name}.")
 
     def startup_messages(self, config: Dict[str, Any], pairlist) -> None:
+        self.send_msg({
+                'type': RPCMessageType.WARNING_NOTIFICATION,
+                'status': 'development build: july 6, 2020 08:00'
+            })
         if config['dry_run']:
             self.send_msg({
                 'type': RPCMessageType.WARNING_NOTIFICATION,
