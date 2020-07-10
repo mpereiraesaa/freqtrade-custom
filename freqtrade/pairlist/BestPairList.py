@@ -81,7 +81,7 @@ class BestPairList(IPairList):
         # Generate dynamic whitelist
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
-            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=3)) * 1000) # MS
+            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -115,10 +115,12 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 0.01]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            # Top 18 by ATR
-            best_pairs = best_pairs[:18]
+            best_pairs = best_pairs[:30]
+            # Top 30 by Volatility
+            best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
+            # Top 18 by positive rate of change
+            best_pairs = best_pairs[:20]
             pairlist = best_pairs['pair'].values.tolist()
-            random.shuffle(pairlist)
             pairlist = pairlist[:self._number_pairs]
         else:
             # Use the cached pairlist if it's not time yet to refresh
