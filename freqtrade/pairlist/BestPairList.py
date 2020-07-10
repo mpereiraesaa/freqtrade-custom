@@ -119,9 +119,8 @@ class BestPairList(IPairList):
             # Top 30 by Volatility
             best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
             # Top 18 by positive rate of change
-            best_pairs = best_pairs[:20]
+            best_pairs = best_pairs[:18]
             pairlist = best_pairs['pair'].values.tolist()
-            pairlist = pairlist[:self._number_pairs]
         else:
             # Use the cached pairlist if it's not time yet to refresh
             pairlist = cached_pairlist
