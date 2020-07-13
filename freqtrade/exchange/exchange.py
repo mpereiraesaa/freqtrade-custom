@@ -19,8 +19,7 @@ from ccxt.base.decimal_to_precision import (ROUND_DOWN, ROUND_UP, TICK_SIZE,
 from pandas import DataFrame
 
 from freqtrade.data.converter import ohlcv_to_dataframe, trades_dict_to_list
-from freqtrade.exceptions import (DependencyException, InvalidOrderException,
-                                  OperationalException, TemporaryError)
+from freqtrade.exceptions import DependencyException, FreqtradeException, InvalidOrderException, OperationalException, TemporaryError
 from freqtrade.exchange.common import BAD_EXCHANGES, retrier, retrier_async
 from freqtrade.misc import deep_merge_dicts, safe_value_fallback
 from freqtrade.constants import ListPairsWithTimeframes
@@ -670,7 +669,7 @@ class Exchange:
 
         # Combine gathered results
         data: List = []
-        if results is not None:
+        if not isinstance(results,FreqtradeException) and not any(map(lambda x: isinstance(x, FreqtradeException), results)):
             for p, timeframe, res in results:
                 if p == pair:
                     data.extend(res)
