@@ -115,7 +115,7 @@ class BestPairList(IPairList):
 
             best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr'])
             best_pairs = best_pairs[best_pairs['avg_rate_change'] > 0]
-            best_pairs = best_pairs[best_pairs['last_fibonacci'] < 0.618]
+            best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.618]
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 2]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
