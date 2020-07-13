@@ -113,7 +113,7 @@ class BestPairList(IPairList):
                         "last_fibonacci": ohlcv['fibonacci'].values[-1]
                     })
 
-            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr'])
+            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr', 'last_fibonacci'])
             best_pairs = best_pairs[best_pairs['avg_rate_change'] > 0]
             best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.618]
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 2]
