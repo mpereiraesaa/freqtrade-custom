@@ -64,7 +64,7 @@ class RPCManager:
     def startup_messages(self, config: Dict[str, Any], pairlist) -> None:
         self.send_msg({
                 'type': RPCMessageType.WARNING_NOTIFICATION,
-                'status': 'development build: july 13, 2020 18:00'
+                'status': 'development build: july 17, 2020 12:00'
             })
         if config['dry_run']:
             self.send_msg({

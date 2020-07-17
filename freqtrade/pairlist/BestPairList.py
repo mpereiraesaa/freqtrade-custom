@@ -114,16 +114,15 @@ class BestPairList(IPairList):
                     })
 
             best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr', 'last_fibonacci'])
-            best_pairs = best_pairs[best_pairs['avg_rate_change'] > 0]
-            best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.618]
-            best_pairs = best_pairs[best_pairs['avg_atr'] <= 2]
+            best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.382]
+            best_pairs = best_pairs[best_pairs['avg_atr'] <= 3]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            best_pairs = best_pairs[:30]
-            # Top 30 by Volatility
+            best_pairs = best_pairs[:50]
+            # Top 50 by Volatility
             best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
-            # Top 18 by positive rate of change
-            best_pairs = best_pairs[:18]
+            # Top 20 by positive rate of change
+            best_pairs = best_pairs[:20]
             pairlist = best_pairs['pair'].values.tolist()
         else:
             # Use the cached pairlist if it's not time yet to refresh
