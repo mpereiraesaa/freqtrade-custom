@@ -82,7 +82,7 @@ class BestPairList(IPairList):
         # Generate dynamic whitelist
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
-            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
+            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=4)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -105,8 +105,8 @@ class BestPairList(IPairList):
 
                     avg_rate_change = np.mean(ohlcv['rate_change_%'])
                     avg_atr = np.mean(ohlcv['atr'])
-                    adx = ta.ADX(ohlcv['high'], ohlcv['low'], ohlcv['close']).values[-1]
-                    rsi = ta.RSI(ohlcv['close']).values[-1]
+                    adx = ta.ADX(ohlcv['high'], ohlcv['low'], ohlcv['close'])[-1]
+                    rsi = ta.RSI(ohlcv['close'])[-1]
 
                     pairs_performance.append({
                         "pair": pair,
