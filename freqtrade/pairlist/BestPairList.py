@@ -105,15 +105,11 @@ class BestPairList(IPairList):
 
                     avg_rate_change = np.mean(ohlcv['rate_change_%'])
                     avg_atr = np.mean(ohlcv['atr'])
-                    adx = ta.ADX(ohlcv['high'], ohlcv['low'], ohlcv['close'])[-1]
-                    rsi = ta.RSI(ohlcv['close'])[-1]
 
                     pairs_performance.append({
                         "pair": pair,
                         "avg_rate_change": avg_rate_change,
                         "avg_atr": avg_atr,
-                        "adx": adx,
-                        "rsi": rsi,
                         "last_fibonacci": ohlcv['fibonacci'].values[-1]
                     })
 
@@ -121,8 +117,6 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.382]
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 3]
             best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
-            best_pairs = best_pairs[best_pairs['adx'] > 42]
-            best_pairs = best_pairs[best_pairs['rsi'] < 30]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
             best_pairs = best_pairs[:50]
             # Top 50 by Volatility
