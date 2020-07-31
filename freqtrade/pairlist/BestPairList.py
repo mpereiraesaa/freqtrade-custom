@@ -36,7 +36,7 @@ class BestPairList(IPairList):
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
-        self.refresh_period = 7200 # seconds
+        self.refresh_period = 21600 # in seconds = 6 hours
         self.timeframe = config['ticker_interval']
 
         if not self._exchange.exchange_has('fetchTickers'):
@@ -82,7 +82,7 @@ class BestPairList(IPairList):
         # Generate dynamic whitelist
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
-            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=4)) * 1000) # MS
+            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=90)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -96,27 +96,36 @@ class BestPairList(IPairList):
             pairs_performance = []
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
-                ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair,
-                fill_missing=False, drop_incomplete=True)
+                ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
+
                 if len(ohlcv) > 0:
-                    ohlcv['rate_change_%'] = ta.ROCP(ohlcv['close'], timeperiod=1)
+                    ohlcv['rate_change'] = ta.ROCP(ohlcv['close'], timeperiod=1)
+
+                    # monday=0, tuesday=1, wednesday=2,thursday=3, friday=4, saturday=5, sunday=6
+                    # Calendar strategy 90 days
+                    ohlcv['day'] = ohlcv['date'].dt.day
+                    sharpe_ratio = np.sqrt(252)*ohlcv.groupby(ohlcv.day).rate_change.mean()/ohlcv.groupby(ohlcv.day).rate_change.std()
+                    best_day = sharpe_ratio.idxmax()
+
+                    ohlcv = ohlcv[len(ohlcv) - ((60 / self.timeframe) * 24 * 4):]
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'], timeperiod=1)
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
 
-                    avg_rate_change = np.mean(ohlcv['rate_change_%'])
+                    avg_rate_change = np.mean(ohlcv['rate_change'])
                     avg_atr = np.mean(ohlcv['atr'])
 
                     pairs_performance.append({
                         "pair": pair,
                         "avg_rate_change": avg_rate_change,
                         "avg_atr": avg_atr,
+                        "best_day": best_day,
                         "last_fibonacci": ohlcv['fibonacci'].values[-1]
                     })
 
-            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr', 'adx', 'rsi', 'last_fibonacci'])
+            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr', 'best_day', 'last_fibonacci'])
             best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.382]
             best_pairs = best_pairs[best_pairs['avg_atr'] <= 3]
-            best_pairs = best_pairs[best_pairs['avg_atr'] >= 0.0005]
+            best_pairs = best_pairs[best_pairs['best_day'] == datetime.today().weekday()]
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
             best_pairs = best_pairs[:50]
             # Top 50 by Volatility
