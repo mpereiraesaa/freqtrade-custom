@@ -36,7 +36,7 @@ class BestPairList(IPairList):
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
-        self.refresh_period = 21600 # in seconds = 6 hours
+        self.refresh_period = 8*60*60 # in seconds = 8 hours
         self.timeframe = config['ticker_interval']
 
         if not self._exchange.exchange_has('fetchTickers'):
@@ -107,7 +107,7 @@ class BestPairList(IPairList):
                     sharpe_ratio = np.sqrt(252)*ohlcv.groupby(ohlcv.day).rate_change.mean()/ohlcv.groupby(ohlcv.day).rate_change.std()
                     best_day = sharpe_ratio.idxmax()
 
-                    ohlcv = ohlcv[len(ohlcv) - ((60 / self.timeframe) * 24 * 4):]
+                    ohlcv = ohlcv[len(ohlcv) - ((60 / 5) * 24 * 4):]
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'], timeperiod=1)
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
 
