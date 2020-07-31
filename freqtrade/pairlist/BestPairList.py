@@ -107,7 +107,7 @@ class BestPairList(IPairList):
                     sharpe_ratio = np.sqrt(252)*ohlcv.groupby(ohlcv.day).rate_change.mean()/ohlcv.groupby(ohlcv.day).rate_change.std()
                     best_day = sharpe_ratio.idxmax()
 
-                    ohlcv = ohlcv[len(ohlcv) - ((60 / 5) * 24 * 4):]
+                    ohlcv = ohlcv[len(ohlcv) - ((60//5) * 24 * 4):]
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'], timeperiod=1)
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
 
