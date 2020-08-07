@@ -32,6 +32,7 @@ class BestPairList(IPairList):
                 '`number_assets` not specified. Please check your configuration '
                 'for "pairlist.config.number_assets"')
 
+        self._pairlistmanager = pairlistmanager
         self._stake_currency = config['stake_currency']
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
@@ -87,37 +88,44 @@ class BestPairList(IPairList):
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
             pairlist = []
-            for trading_pair in self._exchange._api.load_markets():
-                quote = trading_pair.split('/')[1]
-                if quote == 'USDT':
-                    pairlist.append(trading_pair)
+            tickers = self._exchange._api.fetch_tickers()
+            markets = self._exchange._api.load_markets()
+            for trading_pair in markets:
+                if markets[trading_pair]['active'] is True:
+                    quote = trading_pair.split('/')[1]
+                    if quote == 'USDT':
+                        pairlist.append(trading_pair)
+
+            # Take only those with greater volume
+            pairlist = sorted(pairlist, reverse=True, key=lambda pair: tickers[pair]["quoteVolume"])
+            pairlist = pairlist[:110]
+
+            print(f"Available pairs: {len(pairlist)}\n")
 
             # Seek for the right pairs accordign to the next logic.
             pairs_performance = []
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
+                print(f"number of rows downloaded historical data: {len(ohlcv)}\n")
                 if len(ohlcv) > 0:
-                    ohlcv['rate_change'] = ta.ROCP(ohlcv['close'], timeperiod=1)
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'], timeperiod=1)
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
 
-                    avg_rate_change = np.mean(ohlcv['rate_change'])
                     avg_atr = np.mean(ohlcv['atr'])
 
                     pairs_performance.append({
                         "pair": pair,
-                        "avg_rate_change": avg_rate_change,
                         "avg_atr": avg_atr,
-                        "last_fibonacci": ohlcv['fibonacci'].values[-1]
+                        "fibonacci": ohlcv['fibonacci'].values[-1]
                     })
 
-            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_rate_change', 'avg_atr', 'last_fibonacci'])
-            best_pairs = best_pairs[best_pairs['last_fibonacci'] <= 0.5]
+            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_atr', 'fibonacci'])
+            # best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
             # best_pairs = best_pairs[best_pairs['avg_atr'] <= 3]
-            # best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            # best_pairs = best_pairs[:50]
             # Top 50 by Volatility
+            best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
+            best_pairs = best_pairs[:70]
             # best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
             # Top 20 by positive rate of change
             # best_pairs = best_pairs[:50]
@@ -142,3 +150,12 @@ class BestPairList(IPairList):
         self.log_on_refresh(logger.info, f"Searching {self._number_pairs} pairs: {pairs}")
 
         return pairs
+
+    def verify_blacklist(self, pairlist: List[str], logmethod) -> List[str]:
+        """
+        Proxy method to verify_blacklist for easy access for child classes.
+        :param pairlist: Pairlist to validate
+        :param logmethod: Function that'll be called, `logger.info` or `logger.warning`.
+        :return: pairlist - blacklisted pairs
+        """
+        return self._pairlistmanager.verify_blacklist(pairlist, logmethod)
