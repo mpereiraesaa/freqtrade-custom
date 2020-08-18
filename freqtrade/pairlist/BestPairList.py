@@ -7,7 +7,7 @@ import random
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
-from pandas import DataFrame
+from pandas import DataFrame, Series
 import numpy as np
 import talib.abstract as ta
 
@@ -37,7 +37,7 @@ class BestPairList(IPairList):
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
-        self.refresh_period = 2*60*60 # in seconds = 2 hours
+        self.refresh_period = 0.5*60*60 # in seconds = 2 hours
         self.timeframe = config['ticker_interval']
 
         if not self._exchange.exchange_has('fetchTickers'):
@@ -83,7 +83,7 @@ class BestPairList(IPairList):
         # Generate dynamic whitelist
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
-            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=4)) * 1000) # MS
+            since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -107,25 +107,30 @@ class BestPairList(IPairList):
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
-                print(f"number of rows downloaded historical data: {len(ohlcv)}\n")
                 if len(ohlcv) > 0:
-                    ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'], timeperiod=1)
+                    ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'])
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
+                    ohlcv['rsi'] = ta.RSI(ohlcv)
 
-                    avg_atr = np.mean(ohlcv['atr'])
+                    avg_atr = np.mean(ohlcv['atr'].values[-3:])
+
+                    rsi_down_trend = Series(ohlcv['rsi'].values[-5:]).is_monotonic_decreasing
 
                     pairs_performance.append({
                         "pair": pair,
                         "avg_atr": avg_atr,
-                        "fibonacci": ohlcv['fibonacci'].values[-1]
+                        "rsi_downtrend": rsi_down_trend,
+                        "rsi": ohlcv["rsi"].values[-1],
+                        "fibonacci": np.mean(ohlcv['fibonacci'].values[-2:])
                     })
 
-            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_atr', 'fibonacci'])
-            # best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
-            # best_pairs = best_pairs[best_pairs['avg_atr'] <= 3]
+            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_atr', 'rsi_downtrend', 'rsi', 'fibonacci'])
+            best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
+            best_pairs = best_pairs[best_pairs['rsi'] <= 36]
+            best_pairs = best_pairs[best_pairs['rsi_downtrend'] == True]
             # Top 50 by Volatility
             best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            best_pairs = best_pairs[:70]
+            best_pairs = best_pairs[:50]
             # best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
             # Top 20 by positive rate of change
             # best_pairs = best_pairs[:50]
