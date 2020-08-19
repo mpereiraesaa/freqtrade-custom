@@ -107,33 +107,50 @@ class BestPairList(IPairList):
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
+                profits = 0
+                count = 0
+                average_pct_changes = 0
                 if len(ohlcv) > 0:
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'])
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
                     ohlcv['rsi'] = ta.RSI(ohlcv)
+                    ohlcv["pct_change"] = ohlcv['close'].pct_change()
+                    ohlcv["signal"] = np.where(ohlcv.rsi < 30, 1, 0)
 
-                    avg_atr = np.mean(ohlcv['atr'].values[-3:])
+                    for index, row in ohlcv.iterrows():
+                        if row['signal'] == 1:
+                            count += 1
+                            pct_changes = 0
+                            for i in range(1,5):
+                                if index + 1 >= len(ohlcv):
+                                    break
+                                pct_changes += ohlcv.iloc[index + i]['pct_change']
+                            average_pct_changes = pct_changes / 4
+                            if average_pct_changes > 0:
+                                profits += 1
 
                     rsi_down_trend = Series(ohlcv['rsi'].values[-5:]).is_monotonic_decreasing
 
                     pairs_performance.append({
                         "pair": pair,
-                        "avg_atr": avg_atr,
-                        "rsi_downtrend": rsi_down_trend,
+                        "profits": profits,
+                        "count": count,
+                        "pattern_prob": np.round((profits/count)*100, 2) if count != 0 else -1,
+                        "average_change": average_pct_changes,
+                        "rsi_is_downtrend": rsi_down_trend,
                         "rsi": ohlcv["rsi"].values[-1],
                         "fibonacci": np.mean(ohlcv['fibonacci'].values[-2:])
                     })
 
-            best_pairs = DataFrame(pairs_performance, columns=['pair', 'avg_atr', 'rsi_downtrend', 'rsi', 'fibonacci'])
+            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi_is_downtrend', 'rsi', 'fibonacci']
+            best_pairs = DataFrame(pairs_performance, columns=cols)
+            best_pairs.sort_values(by=['pattern_prob', 'count'], ascending=False, inplace=True)
+            # Top 40 with more probability of having a pattern with RSI and support levels.
+            best_pairs = best_pairs.head(40)
+            best_pairs = best_pairs[best_pairs['average_change'] > 0]
             best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
-            best_pairs = best_pairs[best_pairs['rsi'] <= 36]
-            best_pairs = best_pairs[best_pairs['rsi_downtrend'] == True]
-            # Top 50 by Volatility
-            best_pairs.sort_values('avg_atr', ascending=False, inplace=True)
-            best_pairs = best_pairs[:50]
-            # best_pairs.sort_values('avg_rate_change', ascending=False, inplace=True)
-            # Top 20 by positive rate of change
-            # best_pairs = best_pairs[:50]
+            best_pairs = best_pairs[best_pairs['rsi'] <= 35]
+            best_pairs = best_pairs[best_pairs['rsi_is_downtrend'] == True]
             pairlist = best_pairs['pair'].values.tolist()
         else:
             # Use the cached pairlist if it's not time yet to refresh
