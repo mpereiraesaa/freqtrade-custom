@@ -111,7 +111,6 @@ class BestPairList(IPairList):
                 count = 0
                 average_pct_changes = 0
                 if len(ohlcv) > 0:
-                    ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'])
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
                     ohlcv['rsi'] = ta.RSI(ohlcv)
                     ohlcv["pct_change"] = ohlcv['close'].pct_change()
