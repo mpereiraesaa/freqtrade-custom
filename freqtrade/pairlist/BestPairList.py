@@ -133,23 +133,27 @@ class BestPairList(IPairList):
                             if average_pct_changes > 0:
                                 profits += 1
 
+                    rsi_downtrend = Series(ohlcv['rsi'].values[-3:]).is_monotonic_decreasing
+
                     pairs_performance.append({
                         "pair": pair,
                         "profits": profits,
                         "count": count,
                         "pattern_prob": np.round((profits/count)*100, 2) if count != 0 else -1,
                         "average_change": average_pct_changes,
+                        "rsi_downtrend": rsi_downtrend,
                         "rsi": ohlcv["rsi"].values[-1],
                         "fibonacci": np.mean(ohlcv['fibonacci'].values[-2:])
                     })
 
-            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi', 'fibonacci']
+            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi_downtrend', 'rsi', 'fibonacci']
             best_pairs = DataFrame(pairs_performance, columns=cols)
             best_pairs.sort_values(by=['pattern_prob', 'count'], ascending=False, inplace=True)
             # Top 40 with more probability of having a pattern with RSI and support levels.
             best_pairs = best_pairs.head(40)
             best_pairs = best_pairs[best_pairs['average_change'] > 0]
             best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
+            best_pairs = best_pairs[best_pairs['rsi_downtrend'] == True]
             best_pairs = best_pairs[best_pairs['rsi'] < 40]
             pairlist = best_pairs['pair'].values.tolist()
             if len(pairlist) == 0:
