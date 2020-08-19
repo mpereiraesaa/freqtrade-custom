@@ -121,7 +121,7 @@ class BestPairList(IPairList):
                             count += 1
                             pct_changes = 0
                             for i in range(1,5):
-                                if index + 1 >= len(ohlcv):
+                                if index + i >= len(ohlcv):
                                     break
                                 pct_changes += ohlcv.iloc[index + i]['pct_change']
                             average_pct_changes = pct_changes / 4
