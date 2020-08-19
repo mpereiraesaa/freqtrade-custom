@@ -114,7 +114,7 @@ class BestPairList(IPairList):
                     ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
                     ohlcv['rsi'] = ta.RSI(ohlcv)
                     ohlcv["pct_change"] = ohlcv['close'].pct_change()
-                    ohlcv["signal"] = np.where(ohlcv.rsi < 30, 1, 0)
+                    ohlcv["signal"] = np.where(ohlcv['rsi'] < 30, 1, 0)
 
                     for index, row in ohlcv.iterrows():
                         if row['signal'] == 1:
