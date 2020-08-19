@@ -120,11 +120,16 @@ class BestPairList(IPairList):
                         if row['signal'] == 1:
                             count += 1
                             pct_changes = 0
-                            for i in range(1,5):
+                            i = 1
+                            while True:
                                 if index + i >= len(ohlcv):
                                     break
                                 pct_changes += ohlcv.iloc[index + i]['pct_change']
-                            average_pct_changes = pct_changes / 4
+                                if i+1 < 5:
+                                    i += 1
+                                else:
+                                    break
+                            average_pct_changes = pct_changes / i
                             if average_pct_changes > 0:
                                 profits += 1
 
