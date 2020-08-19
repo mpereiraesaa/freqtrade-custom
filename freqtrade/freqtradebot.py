@@ -4,7 +4,7 @@ Freqtrade is the main module of this bot. It contains the class Freqtrade()
 import copy
 import logging
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import isclose
 from threading import Lock
 from typing import Any, Dict, List, Optional
@@ -432,10 +432,11 @@ class FreqtradeBot:
             logger.debug(f"Can't open a new trade for {pair}: max number of trades is reached.")
             return False
 
+        df = self.dataprovider.ohlcv(pair, self.strategy.ticker_interval)
+        std = df['close'].std()
+
         # running get_signal on historical data fetched
-        (buy, sell) = self.strategy.get_signal(
-            pair, self.strategy.ticker_interval,
-            self.dataprovider.ohlcv(pair, self.strategy.ticker_interval))
+        (buy, sell) = self.strategy.get_signal(pair, self.strategy.ticker_interval, df)
 
         if buy and not sell:
             stake_amount = self.get_trade_stake_amount(pair)
@@ -456,7 +457,7 @@ class FreqtradeBot:
                     return False
 
             logger.info(f'Executing Buy for {pair}')
-            return self.execute_buy(pair, stake_amount)
+            return self.execute_buy(pair, stake_amount, None, std)
         else:
             return False
 
@@ -484,7 +485,7 @@ class FreqtradeBot:
             logger.info(f"Bids to asks delta for {pair} does not satisfy condition.")
             return False
 
-    def execute_buy(self, pair: str, stake_amount: float, price: Optional[float] = None) -> bool:
+    def execute_buy(self, pair: str, stake_amount: float, price: Optional[float] = None, std: Optional[float] = None) -> bool:
         """
         Executes a limit buy for the given pair
         :param pair: pair for which we want to create a LIMIT_BUY
@@ -556,9 +557,10 @@ class FreqtradeBot:
             fee_close=fee,
             open_rate=buy_limit_filled_price,
             open_rate_requested=buy_limit_requested,
-            open_date=datetime.utcnow(),
+            open_date=datetime.utcnow() - timedelta(hours=3), # Argentina patch
             exchange=self.exchange.id,
             open_order_id=order_id,
+            std=std,
             strategy=self.strategy.get_strategy_name(),
             ticker_interval=timeframe_to_minutes(self.config['ticker_interval'])
         )
@@ -638,7 +640,7 @@ class FreqtradeBot:
                     trades_closed += 1
                     continue
                 # Check if we can sell our current pair
-                if trade.open_order_id is None and trade.is_open and self.handle_trade(trade):
+                if trade.open_order_id is None and trade.is_open and self.handle_trade_sell_limit(trade):
                     trades_closed += 1
 
             except DependencyException as exception:
@@ -694,6 +696,17 @@ class FreqtradeBot:
         self._sell_rate_cache[pair] = rate
         return rate
 
+    def handle_trade_sell_limit(self, trade: Trade) -> bool:
+        if not trade.is_open:
+            raise DependencyException(f'Attempt to handle closed trade: {trade}')
+
+        logger.debug('Handling %s ...', trade)
+        logger.debug('checking sell')
+
+        sell_rate = (trade.open_rate + trade.std) * 0.995
+        if self._check_and_execute_sell(trade, sell_rate, False, True):
+            return True
+
     def handle_trade(self, trade: Trade) -> bool:
         """
         Sells the current pair if the threshold is reached and updates the trade record.
@@ -708,7 +721,7 @@ class FreqtradeBot:
 
         config_ask_strategy = self.config.get('ask_strategy', {})
 
-        if (config_ask_strategy.get('use_sell_signal', True) or
+        if (config_ask_strategy.get('use_sell_signal', False) or
                 config_ask_strategy.get('ignore_roi_if_buy_signal', False)):
             (buy, sell) = self.strategy.get_signal(
                 trade.pair, self.strategy.ticker_interval,
@@ -883,6 +896,9 @@ class FreqtradeBot:
         """
         Check if timeout is active, and if the order is still open and timed out
         """
+        # Patch to disable timeout selling as we will sell limit orders.
+        if side == "sell":
+            return False
         timeout = self.config.get('unfilledtimeout', {}).get(side)
         ordertime = arrow.get(order['datetime']).datetime
         if timeout is not None:

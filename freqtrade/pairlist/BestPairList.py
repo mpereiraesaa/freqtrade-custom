@@ -37,7 +37,7 @@ class BestPairList(IPairList):
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
-        self.refresh_period = 0.5*60*60 # in seconds = 2 hours
+        self.refresh_period = 0.3*60*60
         self.timeframe = config['ticker_interval']
 
         if not self._exchange.exchange_has('fetchTickers'):
@@ -128,29 +128,27 @@ class BestPairList(IPairList):
                             if average_pct_changes > 0:
                                 profits += 1
 
-                    rsi_down_trend = Series(ohlcv['rsi'].values[-5:]).is_monotonic_decreasing
-
                     pairs_performance.append({
                         "pair": pair,
                         "profits": profits,
                         "count": count,
                         "pattern_prob": np.round((profits/count)*100, 2) if count != 0 else -1,
                         "average_change": average_pct_changes,
-                        "rsi_is_downtrend": rsi_down_trend,
                         "rsi": ohlcv["rsi"].values[-1],
                         "fibonacci": np.mean(ohlcv['fibonacci'].values[-2:])
                     })
 
-            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi_is_downtrend', 'rsi', 'fibonacci']
+            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi', 'fibonacci']
             best_pairs = DataFrame(pairs_performance, columns=cols)
             best_pairs.sort_values(by=['pattern_prob', 'count'], ascending=False, inplace=True)
             # Top 40 with more probability of having a pattern with RSI and support levels.
             best_pairs = best_pairs.head(40)
             best_pairs = best_pairs[best_pairs['average_change'] > 0]
             best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
-            best_pairs = best_pairs[best_pairs['rsi'] <= 35]
-            best_pairs = best_pairs[best_pairs['rsi_is_downtrend'] == True]
+            best_pairs = best_pairs[best_pairs['rsi'] < 40]
             pairlist = best_pairs['pair'].values.tolist()
+            if len(pairlist) == 0:
+                pairlist = cached_pairlist
         else:
             # Use the cached pairlist if it's not time yet to refresh
             pairlist = cached_pairlist

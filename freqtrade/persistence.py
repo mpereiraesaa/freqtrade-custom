@@ -98,6 +98,7 @@ def check_migrate(engine) -> None:
         open_rate_requested = get_column_def(cols, 'open_rate_requested', 'null')
         close_rate_requested = get_column_def(cols, 'close_rate_requested', 'null')
         stop_loss = get_column_def(cols, 'stop_loss', '0.0')
+        std = get_column_def(cols, 'std', 'null')
         stop_loss_pct = get_column_def(cols, 'stop_loss_pct', 'null')
         initial_stop_loss = get_column_def(cols, 'initial_stop_loss', '0.0')
         initial_stop_loss_pct = get_column_def(cols, 'initial_stop_loss_pct', 'null')
@@ -128,7 +129,7 @@ def check_migrate(engine) -> None:
                 (id, exchange, pair, is_open,
                 fee_open, fee_open_cost, fee_open_currency,
                 fee_close, fee_close_cost, fee_open_currency, open_rate,
-                open_rate_requested, close_rate, close_rate_requested, close_profit,
+                open_rate_requested, close_rate, std, close_rate_requested, close_profit,
                 stake_amount, amount, open_date, close_date, open_order_id,
                 stop_loss, stop_loss_pct, initial_stop_loss, initial_stop_loss_pct,
                 stoploss_order_id, stoploss_last_update,
@@ -146,7 +147,7 @@ def check_migrate(engine) -> None:
                 is_open, {fee_open} fee_open, {fee_open_cost} fee_open_cost,
                 {fee_open_currency} fee_open_currency, {fee_close} fee_close,
                 {fee_close_cost} fee_close_cost, {fee_close_currency} fee_close_currency,
-                open_rate, {open_rate_requested} open_rate_requested, close_rate,
+                open_rate, {open_rate_requested} open_rate_requested, close_rate, {std},
                 {close_rate_requested} close_rate_requested, close_profit,
                 stake_amount, amount, open_date, close_date, open_order_id,
                 {stop_loss} stop_loss, {stop_loss_pct} stop_loss_pct,
@@ -205,6 +206,7 @@ class Trade(_DECL_BASE):
     # open_trade_price - calculated via _calc_open_trade_price
     open_trade_price = Column(Float)
     close_rate = Column(Float)
+    std = Column(Float)
     close_rate_requested = Column(Float)
     close_profit = Column(Float)
     close_profit_abs = Column(Float)
@@ -269,6 +271,8 @@ class Trade(_DECL_BASE):
             'open_rate': self.open_rate,
             'open_rate_requested': self.open_rate_requested,
             'open_trade_price': self.open_trade_price,
+
+            'std': self.std,
 
             'close_date_hum': (arrow.get(self.close_date).humanize()
                                if self.close_date else None),
