@@ -703,7 +703,7 @@ class FreqtradeBot:
         logger.debug('Handling %s ...', trade)
         logger.debug('checking sell')
 
-        sell_rate = (trade.open_rate + trade.std) * 0.99
+        sell_rate = trade.open_rate * 1.01
         if self._check_and_execute_sell(trade, sell_rate, False, True):
             return True
 
