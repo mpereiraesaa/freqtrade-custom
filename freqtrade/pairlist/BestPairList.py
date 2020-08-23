@@ -151,7 +151,7 @@ class BestPairList(IPairList):
             # Top 40 with more probability of having a pattern with RSI and support levels.
             best_pairs = best_pairs.head(40)
             best_pairs = best_pairs[best_pairs['average_change'] > 0]
-            best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
+            # best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
             # best_pairs = best_pairs[best_pairs['rsi_downtrend'] == True]
             best_pairs = best_pairs[best_pairs['rsi'] < 40]
             pairlist = best_pairs['pair'].values.tolist()
