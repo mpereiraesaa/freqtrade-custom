@@ -5,6 +5,7 @@ Provides dynamic pair list based on trade volumes
 """
 import random
 import logging
+from scipy import stats
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 from pandas import DataFrame, Series
@@ -113,11 +114,14 @@ class BestPairList(IPairList):
                 profitable = 0
                 if len(ohlcv) > 0:
                     ohlcv['rsi'] = ta.RSI(ohlcv)
+                    ohlcv['atr'] = ta.ATR(ohlcv)
+                    atr_rank = stats.percentileofscore(ohlcv['atr'].values, np.mean(ohlcv['atr'].values[-2:]))
                     buy_signal = [0] * len(ohlcv)
                     for i in range(6, len(ohlcv), 1):
                         coeff = np.corrcoef(ohlcv[i-6:i]['close'].values, self.prices_model)[1][0]
                         price_coeff = coeff > 0.80
-                        buy_signal[i] = 1 if price_coeff and ohlcv.iloc[i]['rsi'] < 30 else 0
+                        atr_range = atr_rank < 71 or atr_rank > 96
+                        buy_signal[i] = 1 if price_coeff and atr_range and ohlcv.iloc[i]['rsi'] < 30 else 0
                     ohlcv['buy'] = buy_signal
 
                     sell_price = None
@@ -143,13 +147,13 @@ class BestPairList(IPairList):
                 })
 
             best_pairs = DataFrame(best_pairs)
-            best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
             best_pairs = best_pairs[best_pairs['percentage'] > 75]
+            best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
 
             # 15 are the ones with most chances in last two days.
-            best_pairs = best_pairs[:20]
+            best_pairs = best_pairs[:15]
 
-            best_pairs = best_pairs[best_pairs['rsi'] < 40]
+            best_pairs = best_pairs[best_pairs['rsi'] < 41]
             pairlist = best_pairs['pair'].values.tolist()
             if len(pairlist) == 0:
                 pairlist = cached_pairlist
