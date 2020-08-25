@@ -10,11 +10,13 @@ from threading import Lock
 from typing import Any, Dict, List, Optional
 
 import arrow
+import rapidjson
 from cachetools import TTLCache
 from requests.exceptions import RequestException
 
 from freqtrade import __version__, constants, persistence
 from freqtrade.configuration import validate_config_consistency
+from freqtrade.configuration.load_config import CONFIG_PARSE_MODE
 from freqtrade.data.converter import order_book_to_dataframe
 from freqtrade.data.dataprovider import DataProvider
 from freqtrade.edge import Edge
@@ -53,13 +55,20 @@ class FreqtradeBot:
         # Init objects
         self.config = config
 
+        self.pricesModel = None
+
+        with open("./prices_model.json") as file:
+            self.pricesModel = rapidjson.load(file, parse_mode=CONFIG_PARSE_MODE)
+
+        logger.info(f"Loading prices model: {','.join(self.pricesModel)}")
+
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still
         # refreshed once every iteration.
         self._sell_rate_cache = TTLCache(maxsize=100, ttl=1800)
         self._buy_rate_cache = TTLCache(maxsize=100, ttl=1800)
 
-        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config)
+        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config, self.pricesModel)
 
         # Check config consistency here since strategies can set certain options
         validate_config_consistency(config)
@@ -70,7 +79,7 @@ class FreqtradeBot:
 
         self.wallets = Wallets(self.config, self.exchange)
 
-        self.pairlists = PairListManager(self.exchange, self.config)
+        self.pairlists = PairListManager(self.exchange, self.config, self.pricesModel)
 
         self.dataprovider = DataProvider(self.config, self.exchange, self.pairlists)
 

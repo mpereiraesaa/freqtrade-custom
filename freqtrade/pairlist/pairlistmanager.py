@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class PairListManager():
 
-    def __init__(self, exchange, config: dict) -> None:
+    def __init__(self, exchange, config: dict, prices_model: List[float]) -> None:
         self._exchange = exchange
         self._config = config
         self._whitelist = self._config['exchange'].get('pair_whitelist')
@@ -35,7 +35,8 @@ class PairListManager():
                     pairlistmanager=self,
                     config=config,
                     pairlistconfig=pairlist_handler_config,
-                    pairlist_pos=len(self._pairlist_handlers)
+                    pairlist_pos=len(self._pairlist_handlers),
+                    prices_model=prices_model
                     )
             self._tickers_needed |= pairlist_handler.needstickers
             self._pairlist_handlers.append(pairlist_handler)

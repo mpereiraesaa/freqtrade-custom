@@ -24,7 +24,7 @@ class BestPairList(IPairList):
 
     def __init__(self, exchange, pairlistmanager,
                  config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int) -> None:
+                 pairlist_pos: int, prices_model: List[float]) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
         if 'number_assets' not in self._pairlistconfig:
@@ -39,6 +39,7 @@ class BestPairList(IPairList):
         self._min_value = self._pairlistconfig.get('min_value', 0)
         self.refresh_period = 0.3*60*60
         self.timeframe = config['ticker_interval']
+        self.prices_model = prices_model
 
         if not self._exchange.exchange_has('fetchTickers'):
             raise OperationalException(
@@ -102,57 +103,48 @@ class BestPairList(IPairList):
 
             print(f"Available pairs: {len(pairlist)}\n")
 
-            # Seek for the right pairs accordign to the next logic.
-            pairs_performance = []
+            print(f"Available price mode: {','.join(self.prices_model)}")
+
+            best_pairs = []
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
-                profits = 0
                 count = 0
-                average_pct_changes = 0
+                profitable = 0
                 if len(ohlcv) > 0:
-                    ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
                     ohlcv['rsi'] = ta.RSI(ohlcv)
-                    ohlcv["pct_change"] = ohlcv['close'].pct_change()
-                    ohlcv["signal"] = np.where(ohlcv['rsi'] < 30, 1, 0)
+                    buy_signal = [0] * len(ohlcv)
+                    for i in range(6, len(ohlcv), 1):
+                        coeff = np.corrcoef(ohlcv[i-6:i]['close'].values, self.prices_model)[1][0]
+                        price_coeff = coeff > 0.80
+                        buy_signal[i] = 1 if price_coeff and ohlcv.iloc[i]['rsi'] < 30 else 0
+                    ohlcv['buy'] = buy_signal
 
+                    sell_price = None
+                    last_index = None
                     for index, row in ohlcv.iterrows():
-                        if row['signal'] == 1:
-                            count += 1
-                            pct_changes = 0
-                            i = 1
-                            while True:
-                                if index + i >= len(ohlcv):
-                                    break
-                                pct_changes += ohlcv.iloc[index + i]['pct_change']
-                                if i+1 < 5:
-                                    i += 1
-                                else:
-                                    break
-                            average_pct_changes = pct_changes / i
-                            if average_pct_changes > 0:
-                                profits += 1
+                        if sell_price is None:
+                            if row['buy'] == 1:
+                                last_index = index
+                                sell_price = row['close'] * 1.01 # 1% profit.
+                                count += 1
+                        else:
+                            # More than just one candle have passed.
+                            if index > last_index + 1 and row['close'] >= sell_price:
+                                sell_price = None
+                                last_index = None
+                                profitable += 1
+                best_pairs.append({
+                    "pair": pair,
+                    "count": count,
+                    "profitable": profitable,
+                    "percentage": (profitable/count)*100 if count != 0 else 0,
+                    "rsi": ohlcv['rsi'].values[-1]
+                })
 
-                    # rsi_downtrend = Series(ohlcv['rsi'].values[-3:]).is_monotonic_decreasing
-
-                    pairs_performance.append({
-                        "pair": pair,
-                        "profits": profits,
-                        "count": count,
-                        "pattern_prob": np.round((profits/count)*100, 2) if count != 0 else -1,
-                        "average_change": average_pct_changes,
-                        "rsi": ohlcv["rsi"].values[-1],
-                        "fibonacci": np.mean(ohlcv['fibonacci'].values[-2:])
-                    })
-
-            cols = ['pair', 'profits', 'count', 'pattern_prob', 'average_change', 'rsi', 'fibonacci']
-            best_pairs = DataFrame(pairs_performance, columns=cols)
-            best_pairs.sort_values(by=['pattern_prob', 'count'], ascending=False, inplace=True)
-            # Top 40 with more probability of having a pattern with RSI and support levels.
-            best_pairs = best_pairs.head(40)
-            best_pairs = best_pairs[best_pairs['average_change'] > 0]
-            # best_pairs = best_pairs[best_pairs['fibonacci'] <= 0.5]
-            # best_pairs = best_pairs[best_pairs['rsi_downtrend'] == True]
+            best_pairs = DataFrame(best_pairs)
+            best_pairs.sort_values(by=['percentage', 'count'], ascending=False, inplace=True)
+            best_pairs = best_pairs[best_pairs['percentage'] > 75]
             best_pairs = best_pairs[best_pairs['rsi'] < 40]
             pairlist = best_pairs['pair'].values.tolist()
             if len(pairlist) == 0:
