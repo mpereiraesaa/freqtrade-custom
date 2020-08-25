@@ -2,7 +2,7 @@
 This module contains the class to persist trades into SQLite
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -396,7 +396,7 @@ class Trade(_DECL_BASE):
         self.close_rate = Decimal(rate)
         self.close_profit = self.calc_profit_ratio()
         self.close_profit_abs = self.calc_profit()
-        self.close_date = datetime.utcnow()
+        self.close_date = datetime.utcnow() - timedelta(hours=3) # Argentina UTC-3 patch
         self.is_open = False
         self.sell_order_status = 'closed'
         self.open_order_id = None
