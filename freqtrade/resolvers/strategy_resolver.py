@@ -30,7 +30,7 @@ class StrategyResolver(IResolver):
     initial_search_path = None
 
     @staticmethod
-    def load_strategy(config: Dict[str, Any] = None, prices_model) -> IStrategy:
+    def load_strategy(config: Dict[str, Any] = None, prices_model: List[float] = []) -> IStrategy:
         """
         Load the custom class from config parameter
         :param config: configuration dictionary or None
