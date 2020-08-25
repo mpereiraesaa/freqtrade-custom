@@ -143,8 +143,12 @@ class BestPairList(IPairList):
                 })
 
             best_pairs = DataFrame(best_pairs)
-            best_pairs.sort_values(by=['percentage', 'count'], ascending=False, inplace=True)
+            best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
             best_pairs = best_pairs[best_pairs['percentage'] > 75]
+
+            # 15 are the ones with most chances in last two days.
+            best_pairs = best_pairs[:20]
+
             best_pairs = best_pairs[best_pairs['rsi'] < 40]
             pairlist = best_pairs['pair'].values.tolist()
             if len(pairlist) == 0:
