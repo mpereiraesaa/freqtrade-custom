@@ -60,7 +60,7 @@ class FreqtradeBot:
         with open("./prices_model.json") as file:
             self.pricesModel = rapidjson.load(file, parse_mode=CONFIG_PARSE_MODE)
 
-        logger.info(f"Loading prices model: {','.join(self.pricesModel)}")
+        logger.info(f"Loading prices model: {self.pricesModel}")
 
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still

@@ -103,7 +103,7 @@ class BestPairList(IPairList):
 
             print(f"Available pairs: {len(pairlist)}\n")
 
-            print(f"Available price mode: {','.join(self.prices_model)}")
+            print(f"Available price model: {self.prices_model}")
 
             best_pairs = []
             for pair in pairlist:
