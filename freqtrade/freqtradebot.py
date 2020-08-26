@@ -211,10 +211,6 @@ class FreqtradeBot:
             self.edge.calculate()
             _whitelist = self.edge.adjust(_whitelist)
 
-        if trades:
-            # Extend active-pair whitelist with pairs of open trades
-            # It ensures that candle (OHLCV) data are downloaded for open trades as well
-            _whitelist.extend([trade.pair for trade in trades if trade.pair not in _whitelist])
         return _whitelist
 
     def get_free_open_trades(self):
