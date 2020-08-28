@@ -128,13 +128,13 @@ class BestPairList(IPairList):
                                 sell_price = None
                                 last_index = None
                                 profitable += 1
-                best_pairs.append({
-                    "pair": pair,
-                    "count": count,
-                    "profitable": profitable,
-                    "percentage": (profitable/count)*100 if count != 0 else 0,
-                    "rsi": ohlcv['rsi'].values[-1]
-                })
+                    best_pairs.append({
+                        "pair": pair,
+                        "count": count,
+                        "profitable": profitable,
+                        "percentage": (profitable/count)*100 if count != 0 else 0,
+                        "rsi": ohlcv['rsi'].values[-1]
+                    })
 
             best_pairs = DataFrame(best_pairs)
             best_pairs.sort_values(by=['profitable'], ascending=False, inplace=True)
