@@ -138,22 +138,22 @@ class BestPairList(IPairList):
                                 sell_price = None
                                 last_index = None
                                 profitable += 1
-                best_pairs.append({
-                    "pair": pair,
-                    "count": count,
-                    "profitable": profitable,
-                    "percentage": (profitable/count)*100 if count != 0 else 0,
-                    "rsi": ohlcv['rsi'].values[-1]
-                })
+                    best_pairs.append({
+                        "pair": pair,
+                        "count": count,
+                        "profitable": profitable,
+                        "percentage": (profitable/count)*100 if count != 0 else 0,
+                        "rsi": ohlcv['rsi'].values[-1]
+                    })
 
             best_pairs = DataFrame(best_pairs)
             best_pairs = best_pairs[best_pairs['percentage'] > 75]
             best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
 
             # 15 are the ones with most chances in last two days.
-            best_pairs = best_pairs[:15]
+            best_pairs = best_pairs[:20]
 
-            best_pairs = best_pairs[best_pairs['rsi'] < 41]
+            best_pairs = best_pairs[best_pairs['rsi'] < 42]
             pairlist = best_pairs['pair'].values.tolist()
             if len(pairlist) == 0:
                 pairlist = cached_pairlist
