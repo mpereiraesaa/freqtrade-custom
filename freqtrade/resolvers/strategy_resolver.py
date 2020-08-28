@@ -30,7 +30,7 @@ class StrategyResolver(IResolver):
     initial_search_path = None
 
     @staticmethod
-    def load_strategy(config: Dict[str, Any] = None, prices_model: List[float] = []) -> IStrategy:
+    def load_strategy(config: Dict[str, Any] = None) -> IStrategy:
         """
         Load the custom class from config parameter
         :param config: configuration dictionary or None
@@ -44,7 +44,7 @@ class StrategyResolver(IResolver):
         strategy_name = config['strategy']
         strategy: IStrategy = StrategyResolver._load_strategy(
             strategy_name, config=config,
-            extra_dir=config.get('strategy_path'), prices_model=prices_model)
+            extra_dir=config.get('strategy_path'))
 
         # make sure ask_strategy dict is available
         if 'ask_strategy' not in config:
@@ -132,7 +132,7 @@ class StrategyResolver(IResolver):
 
     @staticmethod
     def _load_strategy(strategy_name: str,
-                       config: dict, extra_dir: Optional[str] = None, prices_model: List[float] = None) -> IStrategy:
+                       config: dict, extra_dir: Optional[str] = None) -> IStrategy:
         """
         Search and loads the specified strategy.
         :param strategy_name: name of the module to import
@@ -163,7 +163,7 @@ class StrategyResolver(IResolver):
 
         strategy = StrategyResolver._load_object(paths=abs_paths,
                                                  object_name=strategy_name,
-                                                 kwargs={'config': config, 'prices_model': prices_model})
+                                                 kwargs={'config': config})
         if strategy:
             strategy._populate_fun_len = len(getfullargspec(strategy.populate_indicators).args)
             strategy._buy_fun_len = len(getfullargspec(strategy.populate_buy_trend).args)

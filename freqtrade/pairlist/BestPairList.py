@@ -25,7 +25,7 @@ class BestPairList(IPairList):
 
     def __init__(self, exchange, pairlistmanager,
                  config: Dict[str, Any], pairlistconfig: Dict[str, Any],
-                 pairlist_pos: int, prices_model: List[float]) -> None:
+                 pairlist_pos: int) -> None:
         super().__init__(exchange, pairlistmanager, config, pairlistconfig, pairlist_pos)
 
         if 'number_assets' not in self._pairlistconfig:
@@ -40,7 +40,6 @@ class BestPairList(IPairList):
         self._min_value = self._pairlistconfig.get('min_value', 0)
         self.refresh_period = 0.3*60*60
         self.timeframe = config['ticker_interval']
-        self.prices_model = prices_model
 
         if not self._exchange.exchange_has('fetchTickers'):
             raise OperationalException(
@@ -104,8 +103,6 @@ class BestPairList(IPairList):
 
             print(f"Available pairs: {len(pairlist)}\n")
 
-            print(f"Available price model: {self.prices_model}")
-
             best_pairs = []
             for pair in pairlist:
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
@@ -114,27 +111,20 @@ class BestPairList(IPairList):
                 profitable = 0
                 if len(ohlcv) > 0:
                     ohlcv['rsi'] = ta.RSI(ohlcv)
-                    ohlcv['atr'] = ta.ATR(ohlcv)
-                    atr_rank = stats.percentileofscore(ohlcv['atr'].values, np.mean(ohlcv['atr'].values[-2:]))
-                    buy_signal = [0] * len(ohlcv)
-                    for i in range(6, len(ohlcv), 1):
-                        coeff = np.corrcoef(ohlcv[i-6:i]['close'].values, self.prices_model)[1][0]
-                        price_coeff = coeff > 0.80
-                        atr_range = atr_rank < 71 or atr_rank > 96
-                        buy_signal[i] = 1 if price_coeff and atr_range and ohlcv.iloc[i]['rsi'] < 30 else 0
-                    ohlcv['buy'] = buy_signal
+                    ohlcv['fibonacci'] = fibonacci_retracements(ohlcv)
+                    ohlcv["buy_signal"] = np.where((ohlcv['rsi'] < 31) & (ohlcv['fibonacci'] <= 0.382), 1, 0)
 
                     sell_price = None
                     last_index = None
                     for index, row in ohlcv.iterrows():
                         if sell_price is None:
-                            if row['buy'] == 1:
+                            if row['buy_signal'] == 1:
                                 last_index = index
-                                sell_price = row['close'] * 1.01 # 1% profit.
+                                sell_price = row['close'] * 1.005 # 0.5% profit.
                                 count += 1
                         else:
                             # More than just one candle have passed.
-                            if index > last_index + 1 and row['close'] >= sell_price:
+                            if index > (last_index + 1) and row['close'] >= sell_price:
                                 sell_price = None
                                 last_index = None
                                 profitable += 1
@@ -147,11 +137,11 @@ class BestPairList(IPairList):
                 })
 
             best_pairs = DataFrame(best_pairs)
-            best_pairs = best_pairs[best_pairs['percentage'] > 75]
-            best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
+            best_pairs.sort_values(by=['profitable'], ascending=False, inplace=True)
+            best_pairs = best_pairs[best_pairs['percentage'] > 80]
 
-            # 15 are the ones with most chances in last two days.
-            best_pairs = best_pairs[:15]
+            # 20 are the ones with most chances in last two days.
+            best_pairs = best_pairs[:20]
 
             best_pairs = best_pairs[best_pairs['rsi'] < 41]
             pairlist = best_pairs['pair'].values.tolist()

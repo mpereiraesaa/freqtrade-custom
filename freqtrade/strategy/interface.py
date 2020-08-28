@@ -121,9 +121,8 @@ class IStrategy(ABC):
     # Definition of plot_config. See plotting documentation for more details.
     plot_config: Dict = {}
 
-    def __init__(self, config: dict, prices_model: List[float]) -> None:
+    def __init__(self, config: dict) -> None:
         self.config = config
-        self.prices_model = prices_model
         # Dict to determine if analysis is necessary
         self._last_candle_seen_per_pair: Dict[str, datetime] = {}
         self._pair_locked_until: Dict[str, datetime] = {}
@@ -386,31 +385,34 @@ class IStrategy(ABC):
         # Set current rate to high for backtesting sell
         current_rate = high or rate
         current_profit = trade.calc_profit_ratio(current_rate)
-        config_ask_strategy = self.config.get('ask_strategy', {})
+        # config_ask_strategy = self.config.get('ask_strategy', {})
 
-        if buy and config_ask_strategy.get('ignore_roi_if_buy_signal', False):
-            # This one is noisy, commented out
-            # logger.debug(f"{trade.pair} - Buy signal still active. sell_flag=False")
-            return SellCheckTuple(sell_flag=False, sell_type=SellType.NONE)
-
-        # Check if minimal roi has been reached and no longer in buy conditions (avoiding a fee)
-        if self.min_roi_reached(trade=trade, current_profit=current_profit, current_time=date):
-            logger.debug(f"{trade.pair} - Required profit reached. sell_flag=True, "
-                         f"sell_type=SellType.ROI")
+        if current_profit >= 0.005:
             return SellCheckTuple(sell_flag=True, sell_type=SellType.ROI)
 
-        if config_ask_strategy.get('sell_profit_only', False):
-            # This one is noisy, commented out
-            # logger.debug(f"{trade.pair} - Checking if trade is profitable...")
-            if trade.calc_profit(rate=rate) <= 0:
-                # This one is noisy, commented out
-                # logger.debug(f"{trade.pair} - Trade is not profitable. sell_flag=False")
-                return SellCheckTuple(sell_flag=False, sell_type=SellType.NONE)
+        # if buy and config_ask_strategy.get('ignore_roi_if_buy_signal', False):
+        #     # This one is noisy, commented out
+        #     # logger.debug(f"{trade.pair} - Buy signal still active. sell_flag=False")
+        #     return SellCheckTuple(sell_flag=False, sell_type=SellType.NONE)
 
-        if sell and not buy and config_ask_strategy.get('use_sell_signal', True):
-            logger.debug(f"{trade.pair} - Sell signal received. sell_flag=True, "
-                         f"sell_type=SellType.SELL_SIGNAL")
-            return SellCheckTuple(sell_flag=True, sell_type=SellType.SELL_SIGNAL)
+        # # Check if minimal roi has been reached and no longer in buy conditions (avoiding a fee)
+        # if self.min_roi_reached(trade=trade, current_profit=current_profit, current_time=date):
+        #     logger.debug(f"{trade.pair} - Required profit reached. sell_flag=True, "
+        #                  f"sell_type=SellType.ROI")
+        #     return SellCheckTuple(sell_flag=True, sell_type=SellType.ROI)
+
+        # if config_ask_strategy.get('sell_profit_only', False):
+        #     # This one is noisy, commented out
+        #     # logger.debug(f"{trade.pair} - Checking if trade is profitable...")
+        #     if trade.calc_profit(rate=rate) <= 0:
+        #         # This one is noisy, commented out
+        #         # logger.debug(f"{trade.pair} - Trade is not profitable. sell_flag=False")
+        #         return SellCheckTuple(sell_flag=False, sell_type=SellType.NONE)
+
+        # if sell and not buy and config_ask_strategy.get('use_sell_signal', True):
+        #     logger.debug(f"{trade.pair} - Sell signal received. sell_flag=True, "
+        #                  f"sell_type=SellType.SELL_SIGNAL")
+        #     return SellCheckTuple(sell_flag=True, sell_type=SellType.SELL_SIGNAL)
 
         # This one is noisy, commented out...
         # logger.debug(f"{trade.pair} - No sell signal. sell_flag=False")

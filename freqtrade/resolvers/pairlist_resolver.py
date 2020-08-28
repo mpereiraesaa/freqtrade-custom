@@ -24,7 +24,7 @@ class PairListResolver(IResolver):
 
     @staticmethod
     def load_pairlist(pairlist_name: str, exchange, pairlistmanager,
-                      config: dict, pairlistconfig: dict, pairlist_pos: int, prices_model: List[float]) -> IPairList:
+                      config: dict, pairlistconfig: dict, pairlist_pos: int) -> IPairList:
         """
         Load the pairlist with pairlist_name
         :param pairlist_name: Classname of the pairlist
@@ -40,6 +40,5 @@ class PairListResolver(IResolver):
                                                     'pairlistmanager': pairlistmanager,
                                                     'config': config,
                                                     'pairlistconfig': pairlistconfig,
-                                                    'pairlist_pos': pairlist_pos,
-                                                    'prices_model': prices_model},
+                                                    'pairlist_pos': pairlist_pos},
                                             )

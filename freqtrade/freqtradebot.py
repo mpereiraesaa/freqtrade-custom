@@ -55,20 +55,13 @@ class FreqtradeBot:
         # Init objects
         self.config = config
 
-        self.pricesModel = None
-
-        with open("./prices_model.json") as file:
-            self.pricesModel = rapidjson.load(file, parse_mode=CONFIG_PARSE_MODE)
-
-        logger.info(f"Loading prices model: {self.pricesModel}")
-
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still
         # refreshed once every iteration.
         self._sell_rate_cache = TTLCache(maxsize=100, ttl=1800)
         self._buy_rate_cache = TTLCache(maxsize=100, ttl=1800)
 
-        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config, self.pricesModel)
+        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config)
 
         # Check config consistency here since strategies can set certain options
         validate_config_consistency(config)
@@ -79,7 +72,7 @@ class FreqtradeBot:
 
         self.wallets = Wallets(self.config, self.exchange)
 
-        self.pairlists = PairListManager(self.exchange, self.config, self.pricesModel)
+        self.pairlists = PairListManager(self.exchange, self.config)
 
         self.dataprovider = DataProvider(self.config, self.exchange, self.pairlists)
 
@@ -645,7 +638,7 @@ class FreqtradeBot:
                     trades_closed += 1
                     continue
                 # Check if we can sell our current pair
-                if trade.open_order_id is None and trade.is_open and self.handle_trade_sell_limit(trade):
+                if trade.open_order_id is None and trade.is_open and self.handle_trade(trade):
                     trades_closed += 1
 
             except DependencyException as exception:
