@@ -7,7 +7,7 @@ import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, NamedTuple, Optional, Tuple, List
+from typing import Dict, NamedTuple, Optional, Tuple, List, Any
 
 import arrow
 from pandas import DataFrame
@@ -121,9 +121,9 @@ class IStrategy(ABC):
     # Definition of plot_config. See plotting documentation for more details.
     plot_config: Dict = {}
 
-    def __init__(self, config: dict, prices_model: List[float]) -> None:
+    def __init__(self, config: dict, regr: Any) -> None:
         self.config = config
-        self.prices_model = prices_model
+        self.regr = regr
         # Dict to determine if analysis is necessary
         self._last_candle_seen_per_pair: Dict[str, datetime] = {}
         self._pair_locked_until: Dict[str, datetime] = {}

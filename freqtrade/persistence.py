@@ -2,13 +2,13 @@
 This module contains the class to persist trades into SQLite
 """
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 import arrow
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,
-                        create_engine, desc, func, inspect)
+                        create_engine, desc, func, inspect, Date, cast)
 from sqlalchemy.exc import NoSuchModuleError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Query
@@ -576,6 +576,18 @@ class Trade(_DECL_BASE):
             .group_by(Trade.pair) \
             .order_by(desc('profit_sum')).first()
         return best_pair
+
+    @staticmethod
+    def get_closed_pairs_today() -> List[str]:
+        """
+        Get last closed pairs in last day
+        :returns: list
+        """
+        trade_list = Trade.session.query(Trade.pair).filter(Trade.is_open.is_(False)) \
+            .filter(cast(Trade.close_date,Date) == date.today()) \
+            .group_by(Trade.pair) \
+            .all()
+        return trade_list
 
     @staticmethod
     def stoploss_reinitialization(desired_stoploss):

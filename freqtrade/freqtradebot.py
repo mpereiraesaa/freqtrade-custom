@@ -9,6 +9,7 @@ from math import isclose
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
+import pickle
 import arrow
 import rapidjson
 from cachetools import TTLCache
@@ -33,6 +34,7 @@ from freqtrade.strategy.strategy_wrapper import strategy_safe_wrapper
 from freqtrade.wallets import Wallets
 
 logger = logging.getLogger(__name__)
+pkl_filename = 'lin_reg.pkl'
 
 class FreqtradeBot:
     """
@@ -55,12 +57,12 @@ class FreqtradeBot:
         # Init objects
         self.config = config
 
-        self.pricesModel = None
+        self.regr = None
 
-        with open("./prices_model.json") as file:
-            self.pricesModel = rapidjson.load(file, parse_mode=CONFIG_PARSE_MODE)
+        with open(pkl_filename, 'rb') as file:
+            self.regr = pickle.load(file)
 
-        logger.info(f"Loading prices model: {self.pricesModel}")
+        logger.info(f"Loading ML model: {self.regr}")
 
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still
@@ -68,7 +70,7 @@ class FreqtradeBot:
         self._sell_rate_cache = TTLCache(maxsize=100, ttl=1800)
         self._buy_rate_cache = TTLCache(maxsize=100, ttl=1800)
 
-        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config, self.pricesModel)
+        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config, self.regr)
 
         # Check config consistency here since strategies can set certain options
         validate_config_consistency(config)
@@ -79,7 +81,7 @@ class FreqtradeBot:
 
         self.wallets = Wallets(self.config, self.exchange)
 
-        self.pairlists = PairListManager(self.exchange, self.config, self.pricesModel)
+        self.pairlists = PairListManager(self.exchange, self.config, self.regr)
 
         self.dataprovider = DataProvider(self.config, self.exchange, self.pairlists)
 

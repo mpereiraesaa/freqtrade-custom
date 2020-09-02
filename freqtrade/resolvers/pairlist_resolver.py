@@ -4,7 +4,7 @@
 This module load custom pairlists
 """
 import logging
-from typing import List
+from typing import List, Any
 from pathlib import Path
 
 from freqtrade.pairlist.IPairList import IPairList
@@ -24,7 +24,7 @@ class PairListResolver(IResolver):
 
     @staticmethod
     def load_pairlist(pairlist_name: str, exchange, pairlistmanager,
-                      config: dict, pairlistconfig: dict, pairlist_pos: int, prices_model: List[float]) -> IPairList:
+                      config: dict, pairlistconfig: dict, pairlist_pos: int, regr: Any) -> IPairList:
         """
         Load the pairlist with pairlist_name
         :param pairlist_name: Classname of the pairlist
@@ -41,5 +41,5 @@ class PairListResolver(IResolver):
                                                     'config': config,
                                                     'pairlistconfig': pairlistconfig,
                                                     'pairlist_pos': pairlist_pos,
-                                                    'prices_model': prices_model},
+                                                    'regr': regr},
                                             )
