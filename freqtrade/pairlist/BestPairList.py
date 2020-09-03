@@ -159,8 +159,10 @@ class BestPairList(IPairList):
             best_pairs = best_pairs[best_pairs['percentage'] > 75]
             best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
 
+            print(f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
+
             #15 are the ones with most chances in last two days.
-            best_pairs = best_pairs[:17]
+            best_pairs = best_pairs[:14]
             best_pairs = best_pairs[best_pairs['rsi'] < 42]
 
             pairlist = best_pairs['pair'].values.tolist()
