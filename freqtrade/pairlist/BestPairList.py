@@ -153,13 +153,13 @@ class BestPairList(IPairList):
 
             closed_pairs_today = Trade.get_closed_pairs_today()
 
-            print(f"Today traded: {closed_pairs_today}")
+            self.log_on_refresh(logger.info, f"Today traded: {closed_pairs_today}")
 
             best_pairs = DataFrame(best_pairs)
             best_pairs = best_pairs[best_pairs['percentage'] > 75]
             best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
 
-            print(f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
+            self.log_on_refresh(logger.info, f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
 
             #15 are the ones with most chances in last two days.
             best_pairs = best_pairs[:14]
