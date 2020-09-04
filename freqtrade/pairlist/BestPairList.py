@@ -87,6 +87,7 @@ class BestPairList(IPairList):
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
             since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
+            since_day_ms = int(datetime.timestamp(datetime.now() - timedelta(hours=17)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -105,8 +106,20 @@ class BestPairList(IPairList):
 
             best_pairs = []
             for pair in pairlist:
+                day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
+                day_ohlcv = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=True)
+                day_ohlcv = day_ohlcv[-15:]
+
+                # Find only those pairs within safe ranges during hours.
+                max_close = day_ohlcv['close'].max()
+                min_close = day_ohlcv['close'].min()
+                threshold = 1 - (7.25 / 100)
+                if min_close < (max_close * threshold):
+                    continue
+
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
                 ohlcv = ohlcv_to_dataframe(new_data, self.timeframe, pair, fill_missing=False, drop_incomplete=True)
+
                 if len(ohlcv) > 0:
                     ohlcv['rsi'] = ta.RSI(ohlcv)
                     ohlcv['atr'] = ta.ATR(ohlcv['high'], ohlcv['low'], ohlcv['close'])
@@ -164,6 +177,7 @@ class BestPairList(IPairList):
             #15 are the ones with most chances in last two days.
             best_pairs = best_pairs[:14]
             best_pairs = best_pairs[best_pairs['rsi'] < 42]
+            best_pairs = best_pairs[best_pairs['profitable'] > 2]
 
             pairlist = best_pairs['pair'].values.tolist()
             # Filter out those already used today
