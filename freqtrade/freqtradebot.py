@@ -35,6 +35,7 @@ from freqtrade.wallets import Wallets
 
 logger = logging.getLogger(__name__)
 pkl_filename = 'lin_reg.pkl'
+blacklist_filename = 'blacklist.json'
 
 class FreqtradeBot:
     """
@@ -58,11 +59,16 @@ class FreqtradeBot:
         self.config = config
 
         self.regr = None
+        self.custom_blacklist = []
 
         with open(pkl_filename, 'rb') as file:
             self.regr = pickle.load(file)
 
+        with open(blacklist_filename, 'rb') as file:
+            self.custom_blacklist = rapidjson.load(file)
+
         logger.info(f"Loading ML model: {self.regr}")
+        logger.info(f"Loading custom blacklist: {self.custom_blacklist}")
 
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still
@@ -81,7 +87,7 @@ class FreqtradeBot:
 
         self.wallets = Wallets(self.config, self.exchange)
 
-        self.pairlists = PairListManager(self.exchange, self.config, self.regr)
+        self.pairlists = PairListManager(self.exchange, self.config, self.regr, self.custom_blacklist)
 
         self.dataprovider = DataProvider(self.config, self.exchange, self.pairlists)
 

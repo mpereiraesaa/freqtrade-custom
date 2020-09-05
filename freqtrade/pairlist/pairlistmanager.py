@@ -18,13 +18,19 @@ logger = logging.getLogger(__name__)
 
 class PairListManager():
 
-    def __init__(self, exchange, config: dict, regr: Any) -> None:
+    def __init__(self, exchange, config: dict, regr: Any, custom_blacklist: List[str]) -> None:
         self._exchange = exchange
         self._config = config
         self._whitelist = self._config['exchange'].get('pair_whitelist')
         self._blacklist = self._config['exchange'].get('pair_blacklist', [])
         self._pairlist_handlers: List[IPairList] = []
         self._tickers_needed = False
+
+        new_blacklist = [pair + "/USDT" for pair in custom_blacklist]
+        self._blacklist = self._blacklist + new_blacklist
+
+        logger.info(f"New blacklist: {self._blacklist}")
+
         for pairlist_handler_config in self._config.get('pairlists', None):
             if 'method' not in pairlist_handler_config:
                 logger.warning(f"No method found in {pairlist_handler_config}, ignoring.")
