@@ -104,6 +104,8 @@ class BestPairList(IPairList):
             pairlist = sorted(pairlist, reverse=True, key=lambda pair: tickers[pair]["quoteVolume"])
             pairlist = pairlist[:110]
 
+            pairlist = self.verify_blacklist(pairlist, logger.info)
+
             best_pairs = []
             for pair in pairlist:
                 day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
