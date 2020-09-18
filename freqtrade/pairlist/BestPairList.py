@@ -138,10 +138,16 @@ class BestPairList(IPairList):
 
                     buy_signal = [0] * len(ohlcv)
                     for i in range(6, len(ohlcv), 1):
-                        x = ohlcv.iloc[i-6:i]['pct_change'].values.reshape(-1, 6)
-                        predict_threshold = self.regr.predict(x)[0][0] >= 0.009
-                        atr_range = ohlcv.iloc[i]['atr_rank'] < 71 or ohlcv.iloc[i]['atr_rank'] > 96
-                        buy_signal[i] = 1 if predict_threshold and atr_range and ohlcv.iloc[i]['rsi'] < 30 else 0
+                        # Retrieve features
+                        pct_change = ohlcv['pct_change'].iloc[i-5:i+1].values
+                        atr_rank = ohlcv['atr_rank'].iloc[i]
+                        rsi = ohlcv['rsi'].iloc[i]/100
+                        input_data = np.append(pct_change, [rsi, atr_rank])
+                        input_data = input_data.reshape(-1, 8)
+
+                        # Pass input to predictor
+                        predict_threshold = self.regr.predict(input_data)[0][0] > 0.009
+                        buy_signal[i] = 1 if predict_threshold and ohlcv.iloc[i]['rsi'] < 30 else 0
                         ohlcv['buy_signal'] = buy_signal
 
                     sell_price = None
@@ -166,24 +172,17 @@ class BestPairList(IPairList):
                         "rsi": ohlcv['rsi'].values[-1]
                     })
 
-            closed_pairs_today = Trade.get_closed_pairs_today()
-
-            self.log_on_refresh(logger.info, f"Today traded: {closed_pairs_today}")
-
             best_pairs = DataFrame(best_pairs)
-            best_pairs = best_pairs[best_pairs['percentage'] > 75]
-            best_pairs.sort_values(by=['count'], ascending=False, inplace=True)
+            best_pairs = best_pairs[best_pairs['percentage'] > 80]
+            best_pairs.sort_values(by=['profitable'], ascending=False, inplace=True)
 
             self.log_on_refresh(logger.info, f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
 
-            #15 are the ones with most chances in last two days.
-            best_pairs = best_pairs[:14]
             best_pairs = best_pairs[best_pairs['rsi'] < 42]
-            best_pairs = best_pairs[best_pairs['profitable'] > 2]
+            best_pairs = best_pairs[best_pairs['profitable'] > 3]
+            best_pairs = best_pairs[:15]
 
             pairlist = best_pairs['pair'].values.tolist()
-            # Filter out those already used today
-            pairlist = [pair for pair in pairlist if pair not in closed_pairs_today]
         else:
             # Use the cached pairlist if it's not time yet to refresh
             pairlist = cached_pairlist
