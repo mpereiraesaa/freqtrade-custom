@@ -113,13 +113,13 @@ class BestPairList(IPairList):
             best_pairs = []
             for pair in pairlist:
                 day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
-                day_ohlcv = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=True)
+                day_ohlcv = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=False)
                 day_ohlcv = day_ohlcv[-15:]
 
                 # Find only those pairs within safe ranges during hours.
                 max_close = day_ohlcv['close'].max()
                 min_close = day_ohlcv['close'].min()
-                threshold = 1 - (7.25 / 100)
+                threshold = 1 - (6.25 / 100)
                 if min_close < (max_close * threshold):
                     continue
 
@@ -183,7 +183,7 @@ class BestPairList(IPairList):
             self.log_on_refresh(logger.info, f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
 
             best_pairs = best_pairs[best_pairs['rsi'] < 42]
-            best_pairs = best_pairs[best_pairs['profitable'] > 3]
+            best_pairs = best_pairs[best_pairs['profitable'] > 2]
             best_pairs = best_pairs[:15]
 
             pairlist = best_pairs['pair'].values.tolist()
