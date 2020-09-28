@@ -583,10 +583,11 @@ class Trade(_DECL_BASE):
         Get last closed pairs in last day
         :returns: list
         """
-        trade_list = Trade.session.query(Trade.pair).filter(Trade.is_open.is_(False)) \
-            .filter(cast(Trade.close_date,Date) == date.today()) \
-            .group_by(Trade.pair) \
+        trade_list = Trade.session.query(Trade.pair) \
+            .filter(Trade.is_open.is_(False)) \
+            .filter(Trade.close_date >= datetime.strftime(date.today(), '%Y-%m-%d')) \
             .all()
+        trade_list = [pair[0] for pair in trade_list]
         return trade_list
 
     @staticmethod

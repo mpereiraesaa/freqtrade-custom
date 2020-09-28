@@ -106,6 +106,10 @@ class BestPairList(IPairList):
 
             pairlist = self.verify_blacklist(pairlist, logger.info)
 
+            # Fetch already worked out Pairs today.
+            pairs_today = Trade.get_closed_pairs_today()
+            pairlist = [x for x in pairlist if x not in pairs_today]
+
             best_pairs = []
             for pair in pairlist:
                 day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
