@@ -119,7 +119,7 @@ class BestPairList(IPairList):
                 # Find only those pairs within safe ranges during hours.
                 max_close = day_ohlcv['close'].max()
                 min_close = day_ohlcv['close'].min()
-                threshold = 1 - (6.25 / 100)
+                threshold = 1 - (6 / 100)
                 if min_close < (max_close * threshold):
                     continue
 

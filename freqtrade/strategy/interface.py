@@ -348,6 +348,11 @@ class IStrategy(ABC):
             return False, False
 
         (buy, sell) = latest[SignalType.BUY.value] == 1, latest[SignalType.SELL.value] == 1
+
+        if buy:
+            currency = pair.split('/')[0]
+            dataframe.to_csv(f"user_data/csv_logs/{currency}-{latest_date.format('YYYY-MM-DD-HHMM')}.csv", index=False)
+
         logger.debug(
             'trigger: %s (pair=%s) buy=%s sell=%s',
             latest['date'],
