@@ -12,7 +12,6 @@ import ccxt
 import arrow
 from numpy import NAN, mean
 from technical.indicators import fibonacci_retracements
-import trendln
 import pandas as pd
 
 from freqtrade.exceptions import DependencyException, TemporaryError

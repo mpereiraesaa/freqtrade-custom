@@ -653,7 +653,8 @@ class FreqtradeBot:
                     trades_closed += 1
                     continue
                 # Check if we can sell our current pair
-                if trade.open_order_id is None and trade.is_open and self.handle_trade_sell_limit(trade):
+                # if trade.open_order_id is None and trade.is_open and self.handle_trade_sell_limit(trade):
+                if trade.open_order_id is None and trade.is_open and self.handle_trade(trade):
                     trades_closed += 1
 
             except DependencyException as exception:
@@ -734,11 +735,15 @@ class FreqtradeBot:
 
         config_ask_strategy = self.config.get('ask_strategy', {})
 
-        if (config_ask_strategy.get('use_sell_signal', False) or
-                config_ask_strategy.get('ignore_roi_if_buy_signal', False)):
-            (buy, sell) = self.strategy.get_signal(
-                trade.pair, self.strategy.ticker_interval,
-                self.dataprovider.ohlcv(trade.pair, self.strategy.ticker_interval))
+        # if (config_ask_strategy.get('use_sell_signal', False) or
+        #         config_ask_strategy.get('ignore_roi_if_buy_signal', False)):
+        #     (buy, sell) = self.strategy.get_signal(
+        #         trade.pair, self.strategy.ticker_interval,
+        #         self.dataprovider.ohlcv(trade.pair, self.strategy.ticker_interval))
+
+        (buy, sell) = self.strategy.get_signal(
+            trade.pair, self.strategy.ticker_interval,
+            self.dataprovider.ohlcv(trade.pair, self.strategy.ticker_interval))
 
         if config_ask_strategy.get('use_order_book', False):
             order_book_min = config_ask_strategy.get('order_book_min', 1)

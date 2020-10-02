@@ -87,7 +87,7 @@ class BestPairList(IPairList):
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
             since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
-            since_day_ms = int(datetime.timestamp(datetime.now() - timedelta(hours=17)) * 1000) # MS
+            since_day_ms = int(datetime.timestamp(datetime.now() - timedelta(hours=72)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -113,14 +113,24 @@ class BestPairList(IPairList):
             best_pairs = []
             for pair in pairlist:
                 day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
-                day_ohlcv = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=False)
-                day_ohlcv = day_ohlcv[-15:]
+                ohlcv_hourly = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=False)
+                consolidation_ohlcv = ohlcv_hourly[-15:]
 
                 # Find only those pairs within safe ranges during hours.
-                max_close = day_ohlcv['close'].max()
-                min_close = day_ohlcv['close'].min()
-                threshold = 1 - (6 / 100)
+                max_close = consolidation_ohlcv['close'].max()
+                min_close = consolidation_ohlcv['close'].min()
+                threshold = 1 - (6.5 / 100)
                 if min_close < (max_close * threshold):
+                    continue
+
+                ohlcv_hourly['returns'] = ohlcv_hourly['close'].pct_change()
+                returns_df = ohlcv_hourly[ohlcv_hourly['returns'].notnull()]
+                returns_df.sort_values(by=['returns'], ascending=True, inplace=True)
+
+                self.log_on_refresh(logger.info, f"{pair} 99% conf level VaR: {returns_df['returns'].quantile(0.01)}")
+
+                # VaR ratio 99% confidence level. Possible losses must be lower than -0.03 to stay safe.
+                if returns_df['returns'].quantile(0.01) < -0.03:
                     continue
 
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
@@ -182,8 +192,8 @@ class BestPairList(IPairList):
 
             self.log_on_refresh(logger.info, f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
 
-            best_pairs = best_pairs[best_pairs['rsi'] < 42]
-            best_pairs = best_pairs[best_pairs['profitable'] > 2]
+            # best_pairs = best_pairs[best_pairs['rsi'] < 42]
+            # best_pairs = best_pairs[best_pairs['profitable'] > 2]
             best_pairs = best_pairs[:15]
 
             pairlist = best_pairs['pair'].values.tolist()
