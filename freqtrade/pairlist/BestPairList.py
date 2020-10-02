@@ -39,7 +39,7 @@ class BestPairList(IPairList):
         self._number_pairs = np.random.randint(10, 18)
         self._sort_key = self._pairlistconfig.get('sort_key', 'quoteVolume')
         self._min_value = self._pairlistconfig.get('min_value', 0)
-        self.refresh_period = 0.3*60*60
+        self.refresh_period = 0.5*60*60
         self.timeframe = config['ticker_interval']
         self.regr = regr
 
@@ -87,7 +87,7 @@ class BestPairList(IPairList):
         if self._last_refresh + self.refresh_period < datetime.now().timestamp():
             self._last_refresh = int(datetime.now().timestamp())
             since_ms = int(datetime.timestamp(datetime.now() - timedelta(days=2)) * 1000) # MS
-            since_day_ms = int(datetime.timestamp(datetime.now() - timedelta(hours=72)) * 1000) # MS
+            since_day_ms = int(datetime.timestamp(datetime.now() - timedelta(hours=48)) * 1000) # MS
 
             # Use fresh pairlist
             # Check if pair quote currency equals to the stake currency.
@@ -129,8 +129,8 @@ class BestPairList(IPairList):
 
                 self.log_on_refresh(logger.info, f"{pair} 99% conf level VaR: {returns_df['returns'].quantile(0.01)}")
 
-                # VaR ratio 99% confidence level. Possible losses must be lower than -0.03 to stay safe.
-                if returns_df['returns'].quantile(0.01) < -0.03:
+                # VaR ratio 99% confidence level. Possible losses must be lower than -0.034 to stay safe.
+                if returns_df['returns'].quantile(0.01) < -0.034:
                     continue
 
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
@@ -192,8 +192,8 @@ class BestPairList(IPairList):
 
             self.log_on_refresh(logger.info, f"Predictive power: {best_pairs[:17]['percentage'].mean()}")
 
-            # best_pairs = best_pairs[best_pairs['rsi'] < 42]
-            # best_pairs = best_pairs[best_pairs['profitable'] > 2]
+            best_pairs = best_pairs[best_pairs['rsi'] < 45]
+            best_pairs = best_pairs[best_pairs['profitable'] > 2]
             best_pairs = best_pairs[:15]
 
             pairlist = best_pairs['pair'].values.tolist()
