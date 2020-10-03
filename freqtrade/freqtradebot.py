@@ -721,7 +721,7 @@ class FreqtradeBot:
         if self._check_and_execute_sell(trade, sell_rate, False, True):
             return True
 
-    def handle_auto_sell(self, trade: Trade) ->
+    def handle_auto_sell(self, trade: Trade) -> bool:
         """
         Sells the current pair if the threshold is reached and updates the trade record.
         :return: True if trade has been sold, False otherwise
