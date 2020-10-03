@@ -654,7 +654,7 @@ class FreqtradeBot:
                     continue
                 # Check if we can sell our current pair
                 # if trade.open_order_id is None and trade.is_open and self.handle_trade_sell_limit(trade):
-                if trade.open_order_id is None and trade.is_open and self.handle_trade(trade):
+                if trade.open_order_id is None and trade.is_open and self.handle_auto_sell(trade):
                     trades_closed += 1
 
             except DependencyException as exception:
@@ -720,6 +720,19 @@ class FreqtradeBot:
         sell_rate = trade.open_rate * 1.01
         if self._check_and_execute_sell(trade, sell_rate, False, True):
             return True
+
+    def handle_auto_sell(self, trade: Trade) ->
+        """
+        Sells the current pair if the threshold is reached and updates the trade record.
+        :return: True if trade has been sold, False otherwise
+        """
+        if not trade.is_open:
+            raise DependencyException(f'Attempt to handle closed trade: {trade}')
+
+        logger.debug('Handling %s ...', trade)
+
+        sell_rate = self.get_sell_rate(trade.pair, True)
+        return self._check_and_execute_sell(trade, sell_rate, False, True)
 
     def handle_trade(self, trade: Trade) -> bool:
         """
