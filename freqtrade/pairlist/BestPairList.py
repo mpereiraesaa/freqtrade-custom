@@ -129,8 +129,8 @@ class BestPairList(IPairList):
 
                 self.log_on_refresh(logger.info, f"{pair} 99% conf level VaR: {returns_df['returns'].quantile(0.01)}")
 
-                # VaR ratio 99% confidence level. Possible losses must be lower than -0.034 to stay safe.
-                if returns_df['returns'].quantile(0.01) < -0.034:
+                # VaR ratio 99% confidence level. Possible losses must be lower than -0.03 to stay safe.
+                if returns_df['returns'].quantile(0.01) < -0.03:
                     continue
 
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
