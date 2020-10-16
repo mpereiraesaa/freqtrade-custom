@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import pandas as pd
 from pandas import DataFrame, Series
 import numpy as np
+import talib
 import talib.abstract as ta
 
 from freqtrade.persistence import Trade
@@ -21,6 +22,70 @@ pd.options.mode.chained_assignment = None
 logger = logging.getLogger(__name__)
 
 SORT_VALUES = ['askVolume', 'bidVolume', 'quoteVolume']
+
+candlestick_patterns = {
+    'CDL2CROWS':'Two Crows',
+    'CDL3BLACKCROWS':'Three Black Crows',
+    'CDL3INSIDE':'Three Inside Up/Down',
+    'CDL3LINESTRIKE':'Three-Line Strike',
+    'CDL3OUTSIDE':'Three Outside Up/Down',
+    'CDL3STARSINSOUTH':'Three Stars In The South',
+    'CDL3WHITESOLDIERS':'Three Advancing White Soldiers',
+    'CDLABANDONEDBABY':'Abandoned Baby',
+    'CDLADVANCEBLOCK':'Advance Block',
+    'CDLBELTHOLD':'Belt-hold',
+    'CDLBREAKAWAY':'Breakaway',
+    'CDLCLOSINGMARUBOZU':'Closing Marubozu',
+    'CDLCONCEALBABYSWALL':'Concealing Baby Swallow',
+    'CDLCOUNTERATTACK':'Counterattack',
+    'CDLDARKCLOUDCOVER':'Dark Cloud Cover',
+    'CDLDOJI':'Doji',
+    'CDLDOJISTAR':'Doji Star',
+    'CDLDRAGONFLYDOJI':'Dragonfly Doji',
+    'CDLENGULFING':'Engulfing Pattern',
+    'CDLEVENINGDOJISTAR':'Evening Doji Star',
+    'CDLEVENINGSTAR':'Evening Star',
+    'CDLGAPSIDESIDEWHITE':'Up/Down-gap side-by-side white lines',
+    'CDLGRAVESTONEDOJI':'Gravestone Doji',
+    'CDLHAMMER':'Hammer',
+    'CDLHANGINGMAN':'Hanging Man',
+    'CDLHARAMI':'Harami Pattern',
+    'CDLHARAMICROSS':'Harami Cross Pattern',
+    'CDLHIGHWAVE':'High-Wave Candle',
+    'CDLHIKKAKE':'Hikkake Pattern',
+    'CDLHIKKAKEMOD':'Modified Hikkake Pattern',
+    'CDLHOMINGPIGEON':'Homing Pigeon',
+    'CDLIDENTICAL3CROWS':'Identical Three Crows',
+    'CDLINNECK':'In-Neck Pattern',
+    'CDLINVERTEDHAMMER':'Inverted Hammer',
+    'CDLKICKING':'Kicking',
+    'CDLKICKINGBYLENGTH':'Kicking - bull/bear determined by the longer marubozu',
+    'CDLLADDERBOTTOM':'Ladder Bottom',
+    'CDLLONGLEGGEDDOJI':'Long Legged Doji',
+    'CDLLONGLINE':'Long Line Candle',
+    'CDLMARUBOZU':'Marubozu',
+    'CDLMATCHINGLOW':'Matching Low',
+    'CDLMATHOLD':'Mat Hold',
+    'CDLMORNINGDOJISTAR':'Morning Doji Star',
+    'CDLMORNINGSTAR':'Morning Star',
+    'CDLONNECK':'On-Neck Pattern',
+    'CDLPIERCING':'Piercing Pattern',
+    'CDLRICKSHAWMAN':'Rickshaw Man',
+    'CDLRISEFALL3METHODS':'Rising/Falling Three Methods',
+    'CDLSEPARATINGLINES':'Separating Lines',
+    'CDLSHOOTINGSTAR':'Shooting Star',
+    'CDLSHORTLINE':'Short Line Candle',
+    'CDLSPINNINGTOP':'Spinning Top',
+    'CDLSTALLEDPATTERN':'Stalled Pattern',
+    'CDLSTICKSANDWICH':'Stick Sandwich',
+    'CDLTAKURI':'Takuri (Dragonfly Doji with very long lower shadow)',
+    'CDLTASUKIGAP':'Tasuki Gap',
+    'CDLTHRUSTING':'Thrusting Pattern',
+    'CDLTRISTAR':'Tristar Pattern',
+    'CDLUNIQUE3RIVER':'Unique 3 River',
+    'CDLUPSIDEGAP2CROWS':'Upside Gap Two Crows',
+    'CDLXSIDEGAP3METHODS':'Upside/Downside Gap Three Methods'
+}
 
 class BestPairList(IPairList):
 
@@ -114,14 +179,6 @@ class BestPairList(IPairList):
             for pair in pairlist:
                 day_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe='1h', since_ms=since_day_ms)
                 ohlcv_hourly = ohlcv_to_dataframe(day_data, '1h', pair, fill_missing=False, drop_incomplete=False)
-                # consolidation_ohlcv = ohlcv_hourly[-15:]
-
-                # Find only those pairs within safe ranges during hours.
-                # max_close = consolidation_ohlcv['close'].max()
-                # min_close = consolidation_ohlcv['close'].min()
-                # threshold = 1 - (6.5 / 100)
-                # if min_close < (max_close * threshold):
-                #     continue
 
                 ohlcv_hourly['returns'] = ohlcv_hourly['close'].pct_change()
                 returns_df = ohlcv_hourly[ohlcv_hourly['returns'].notnull()]
@@ -131,6 +188,21 @@ class BestPairList(IPairList):
 
                 # VaR ratio 99% confidence level. Possible losses must be lower than -0.03 to stay safe.
                 if returns_df['returns'].quantile(0.01) < -0.03:
+                    continue
+
+                bullish = []
+                bearish = []
+
+                for pattern in candlestick_patterns:
+                    pattern_function = getattr(talib, pattern)
+                    data = pattern_function(ohlcv_hourly['open'], ohlcv_hourly['high'], ohlcv_hourly['low'], ohlcv_hourly['close'])
+                    last = data.tail(1).values[0]
+                    if last > 0:
+                        bullish.append(candlestick_patterns[pattern])
+                    if last < 0:
+                        bearish.append(candlestick_patterns[pattern])
+
+                if len(bearish) > 0:
                     continue
 
                 new_data = self._exchange.get_historic_ohlcv(pair=pair, timeframe=self.timeframe, since_ms=since_ms)
