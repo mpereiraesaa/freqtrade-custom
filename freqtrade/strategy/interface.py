@@ -504,7 +504,7 @@ class IStrategy(ABC):
         # 10 minutes (Convert to UTC-3) have passed and we seek profits greater than 0.007%
         sell = (trade_dur - 180) >= 10 and current_profit > 0.007
 
-        if (trade_dur - 180) > 900 and current_profit > -2:
+        if (trade_dur - 180) > 900 and current_profit > -0.02:
             sell = True
 
         return sell

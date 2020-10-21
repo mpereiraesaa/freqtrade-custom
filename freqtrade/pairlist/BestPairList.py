@@ -255,7 +255,7 @@ class BestPairList(IPairList):
                         "count": count,
                         "profitable": profitable,
                         "percentage": (profitable/count)*100 if count != 0 else 0,
-                        "rsi": ohlcv['rsi'].values[-1]
+                        "rsi": ohlcv['rsi'].values[-1] if len(ohlcv) > 0 else 76
                     })
 
             best_pairs = DataFrame(best_pairs)
