@@ -507,6 +507,9 @@ class IStrategy(ABC):
         if (trade_dur - 180) > 900 and current_profit > -0.02:
             sell = True
 
+        if (trade_dur - 180) > 1400 and current_profit > -0.04:
+            sell = True
+
         return sell
 
     def min_roi_reached(self, trade: Trade, current_profit: float, current_time: datetime) -> bool:

@@ -167,7 +167,7 @@ class BestPairList(IPairList):
 
             # Take only those with greater volume
             pairlist = sorted(pairlist, reverse=True, key=lambda pair: tickers[pair]["quoteVolume"])
-            pairlist = pairlist[:130]
+            pairlist = pairlist[:100]
 
             pairlist = self.verify_blacklist(pairlist, logger.info)
 
