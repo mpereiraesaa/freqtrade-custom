@@ -193,6 +193,11 @@ class BestPairList(IPairList):
                 bullish = []
                 bearish = []
 
+                ohlcv_hourly = ohlcv_hourly.dropna()
+
+                if len(ohlcv_hourly) == 0:
+                    continue
+
                 for pattern in candlestick_patterns:
                     pattern_function = getattr(talib, pattern)
                     data = pattern_function(ohlcv_hourly['open'], ohlcv_hourly['high'], ohlcv_hourly['low'], ohlcv_hourly['close'])
@@ -242,7 +247,7 @@ class BestPairList(IPairList):
                         if sell_price is None:
                             if row['buy_signal'] == 1:
                                 buy_date = row['date']
-                                sell_price = row['close'] * 1.008 # 1% profit.
+                                sell_price = row['close'] * 1.007 # 0.07% profit.
                                 count += 1
                         else:
                             minutes_passed = (row['date'] - buy_date)  / timedelta(minutes=1)
