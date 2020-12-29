@@ -9,7 +9,6 @@ from math import isclose
 from threading import Lock
 from typing import Any, Dict, List, Optional
 
-import pickle
 import arrow
 import rapidjson
 from cachetools import TTLCache
@@ -34,8 +33,6 @@ from freqtrade.strategy.strategy_wrapper import strategy_safe_wrapper
 from freqtrade.wallets import Wallets
 
 logger = logging.getLogger(__name__)
-pkl_filename = 'lin_reg.pkl'
-blacklist_filename = 'blacklist.json'
 
 class FreqtradeBot:
     """
@@ -58,25 +55,13 @@ class FreqtradeBot:
         # Init objects
         self.config = config
 
-        self.regr = None
-        self.custom_blacklist = []
-
-        with open(pkl_filename, 'rb') as file:
-            self.regr = pickle.load(file)
-
-        with open(blacklist_filename, 'rb') as file:
-            self.custom_blacklist = rapidjson.load(file)
-
-        logger.info(f"Loading ML model: {self.regr}")
-        logger.info(f"Loading custom blacklist: {self.custom_blacklist}")
-
         # Cache values for 1800 to avoid frequent polling of the exchange for prices
         # Caching only applies to RPC methods, so prices for open trades are still
         # refreshed once every iteration.
         self._sell_rate_cache = TTLCache(maxsize=100, ttl=1800)
         self._buy_rate_cache = TTLCache(maxsize=100, ttl=1800)
 
-        self.strategy: IStrategy = StrategyResolver.load_strategy(self.config, self.regr)
+        self.strategy = IStrategy(config)
 
         # Check config consistency here since strategies can set certain options
         validate_config_consistency(config)
@@ -87,14 +72,14 @@ class FreqtradeBot:
 
         self.wallets = Wallets(self.config, self.exchange)
 
-        self.pairlists = PairListManager(self.exchange, self.config, self.regr, self.custom_blacklist)
+        self.pairlists = PairListManager(self.exchange, self.config)
 
         self.dataprovider = DataProvider(self.config, self.exchange, self.pairlists)
 
         # Attach Dataprovider to Strategy baseclass
-        IStrategy.dp = self.dataprovider
+        self.strategy.dp = self.dataprovider
         # Attach Wallets to Strategy baseclass
-        IStrategy.wallets = self.wallets
+        self.strategy.wallets = self.wallets
 
         # Initializing Edge only if enabled
         self.edge = Edge(self.config, self.exchange, self.strategy) if \
@@ -451,7 +436,7 @@ class FreqtradeBot:
         # running get_signal on historical data fetched
         (buy, sell) = self.strategy.get_signal(pair, self.strategy.ticker_interval, df)
 
-        if buy and not sell:
+        if buy:
             stake_amount = self.get_trade_stake_amount(pair)
             if not stake_amount:
                 logger.debug(f"Stake amount is 0, ignoring possible trade for {pair}.")

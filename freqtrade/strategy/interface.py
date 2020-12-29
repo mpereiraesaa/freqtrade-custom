@@ -9,20 +9,66 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Dict, NamedTuple, Optional, Tuple, List, Any
 
+import pickle
+import rapidjson
+import talib as ta
+import pandas as pd
+import numpy as np
+
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.decomposition import PCA
+
 import arrow
-from pandas import DataFrame
+from pandas import DataFrame, read_csv
 
 from freqtrade.data.dataprovider import DataProvider
 from freqtrade.exceptions import StrategyError
 from freqtrade.exchange import timeframe_to_minutes
 from freqtrade.persistence import Trade
-from freqtrade.strategy.strategy_wrapper import strategy_safe_wrapper
-from freqtrade.constants import ListPairsWithTimeframes
+from freqtrade.constants import ListPairsWithTimeframes, USERPATH_MODELS, USERPATH_TWEETS
 from freqtrade.wallets import Wallets
 
+diff = lambda x, y: x - y
+abs_diff = lambda x, y: abs(x - y)
+
+indicators = [
+    ('RSI', ta.RSI, ['close']),
+    ('ATR', ta.ATR, ['high', 'low', 'close']),
+    ('MFI', ta.MFI, ['high', 'low', 'close', 'volume']),
+    ('ULTOSC', ta.ULTOSC, ['high', 'low', 'close']),
+    ('WILLR', ta.WILLR, ['high', 'low', 'close']),
+    ('CCI', ta.CCI, ['high', 'low', 'close']),
+    ('AD', ta.AD, ['high', 'low', 'close', 'volume']),
+    ('ADOSC', ta.ADOSC, ['high', 'low', 'close', 'volume']),       
+    ('TRIX', ta.TRIX, ['close']),
+    ('PPO', ta.PPO, ['close']),
+    ('CCI', ta.CCI, ['high', 'low', 'close']),
+    ('ADX', ta.ADX, ['high', 'low', 'close']),
+    ('OBV', ta.OBV, ['close', 'volume']),
+    ('CDLENGULFING', ta.CDLENGULFING, ['open', 'high', 'low', 'close']),
+    ('CDLHIKKAKE', ta.CDLHIKKAKE, ['open', 'high', 'low', 'close']),
+    ('CDLHIKKAKEMOD', ta.CDLHIKKAKEMOD, ['open', 'high', 'low', 'close']),
+    ('CDLBELTHOLD', ta.CDLBELTHOLD, ['open', 'high', 'low', 'close']),
+    ('CDLEVENINGDOJISTAR', ta.CDLEVENINGDOJISTAR, ['open', 'high', 'low', 'close']),
+    ('CDLEVENINGSTAR', ta.CDLEVENINGSTAR, ['open', 'high', 'low', 'close']),
+    ('CDLLONGLINE', ta.CDLLONGLINE, ['open', 'high', 'low', 'close']),
+    ('CDLCLOSINGMARUBOZU', ta.CDLCLOSINGMARUBOZU, ['open', 'high', 'low', 'close']),
+    ('CDLSHORTLINE', ta.CDL3OUTSIDE, ['open', 'high', 'low', 'close']),
+    ('CDLDOJI', ta.CDLDOJI, ['open', 'high', 'low', 'close']),
+    ('CDLHARAMICROSS', ta.CDLHARAMICROSS, ['open', 'high', 'low', 'close'])        
+]
+
+features = ['open', 'high', 'low', 'close', 'volume', 'sentiment',
+       'tw_count', 'RSI', 'ATR', 'MFI', 'ULTOSC', 'WILLR', 'CCI', 'AD',
+       'ADOSC', 'TRIX', 'PPO', 'ADX', 'OBV', 'CDLENGULFING', 'CDLHIKKAKE',
+       'CDLHIKKAKEMOD', 'CDLBELTHOLD', 'CDLEVENINGDOJISTAR', 'CDLEVENINGSTAR',
+       'CDLLONGLINE', 'CDLCLOSINGMARUBOZU', 'CDLSHORTLINE', 'CDLDOJI',
+       'CDLHARAMICROSS', 'macd_diff',
+       'hband_distance', 'lband_distance', 'up_bband', 'down_bband',
+        'pct_change', 'ret_lag_1', 'ret_lag_2', 'ret_lag_3', 'ret_lag_4', 'ret_lag_5']
+N = 5
 
 logger = logging.getLogger(__name__)
-
 
 class SignalType(Enum):
     """
@@ -53,8 +99,7 @@ class SellCheckTuple(NamedTuple):
     sell_flag: bool
     sell_type: SellType
 
-
-class IStrategy(ABC):
+class IStrategy:
     """
     Interface for freqtrade strategies
     Defines the mandatory structure must follow any custom strategies
@@ -77,7 +122,7 @@ class IStrategy(ABC):
     minimal_roi: Dict
 
     # associated stoploss
-    stoploss: float
+    stoploss: float = -0.999
 
     # trailing stoploss
     trailing_stop: bool = False
@@ -86,7 +131,7 @@ class IStrategy(ABC):
     trailing_only_offset_is_reached = False
 
     # associated ticker interval
-    ticker_interval: str
+    ticker_interval: str = '5m'
 
     # Optional order types
     order_types: Dict = {
@@ -121,14 +166,49 @@ class IStrategy(ABC):
     # Definition of plot_config. See plotting documentation for more details.
     plot_config: Dict = {}
 
-    def __init__(self, config: dict, regr: Any) -> None:
+    def __init__(self, config: dict) -> None:
         self.config = config
-        self.regr = regr
         # Dict to determine if analysis is necessary
         self._last_candle_seen_per_pair: Dict[str, datetime] = {}
         self._pair_locked_until: Dict[str, datetime] = {}
 
-    @abstractmethod
+    def add_indicators(self, df) -> pd.DataFrame:
+        for name, f, arg_names in indicators:
+            wrapper = lambda func, args: func(*args)
+            args = [df[arg_name] for arg_name in arg_names]
+            df[name] = wrapper(f, args)
+            
+        macd, macdsignal, macdhist = ta.MACD(df['close'])
+        df['macd_diff'] = macd - macdsignal
+        upperband, middleband, lowerband = ta.BBANDS(df['close'])
+        df['hband_distance'] = upperband - df['close']
+        df['lband_distance'] = df['close'] - lowerband
+        df['up_bband'] = np.where(df['close'] > upperband, 1, 0)
+        df['down_bband'] = np.where(df['close'] < lowerband, 1, 0)
+        df['target'] = np.where(((df.close - df.close.shift(1)) / df.close) > 0.0005, 1, 0)
+        df['pct_change'] = df['close'].pct_change()  
+        
+        df.fillna(method='bfill', inplace=True)
+        return df
+
+    # Add lagged indicators and target feature.
+    def add_lagged_indicators(self, df):
+        new_df = []
+        for index, row in df.iterrows():
+            curr_price = row['close']
+            # Take some Up-Trend from next 6 candles
+            max_next_price = df[index+1:index+7]['close'].max()
+            future_roc = (max_next_price-curr_price)/curr_price
+            agg_lags = {}
+            for i in range(1, N+1):
+                agg_lags[f"ret_lag_{i}"] = df['pct_change'].iloc[index-i]
+            if future_roc > 0.005:
+                agg_lags["target"] = 1
+            else:
+                agg_lags["target"] = 0
+            new_df.append({ **dict(row), **agg_lags })
+        return DataFrame(new_df)
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Populate indicators that will be used in the Buy and Sell strategy
@@ -136,8 +216,11 @@ class IStrategy(ABC):
         :param metadata: Additional information, like the currently traded pair
         :return: a Dataframe with all mandatory indicators for the strategies
         """
+        df_with_indicators = self.add_indicators(dataframe)
+        df = self.add_lagged_indicators(df_with_indicators)
 
-    @abstractmethod
+        return df
+
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
@@ -145,8 +228,46 @@ class IStrategy(ABC):
         :param metadata: Additional information, like the currently traded pair
         :return: DataFrame with buy column
         """
+        pair = str(metadata.get('pair'))
+        symbol = pair.split('/')[0]
+        tweets_metadata = None
+        clf = None
+        pca = None
 
-    @abstractmethod
+        # Load twitter json
+        with open(f"{self.config['user_data_dir']}/{USERPATH_TWEETS}/{symbol}.json", 'rb') as file:
+            tweets_metadata = rapidjson.load(file)
+
+        # Load Pair ML Model
+        with open(f"{self.config['user_data_dir']}/{USERPATH_MODELS}/{symbol}.pkl", 'rb') as file:
+            clf = pickle.load(file)
+
+        # Load Pair PCA Model
+        with open(f"{self.config['user_data_dir']}/{USERPATH_MODELS}/pca-{symbol}.pkl", 'rb') as file:
+            pca = pickle.load(file)
+
+        # Add twitter data
+        dataframe['sentiment'] = tweets_metadata['sentiment']
+        dataframe['tw_count'] = tweets_metadata['tw_count']
+
+        # Scale data for ML
+        scaler = MinMaxScaler()
+        scaled_df = DataFrame(scaler.fit_transform(dataframe[features]), columns=[features])
+
+        pca_output = pca.transform(scaled_df)
+
+        # Get last index.
+        x = pca_output[-1].reshape(-1, pca_output.shape[1])
+
+        buy = clf.predict(x)[0]
+
+        pred_column = [0] * len(dataframe)
+        pred_column[-1] = buy
+
+        dataframe['buy'] = pred_column
+
+        return dataframe
+
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
         Based on TA indicators, populates the sell signal for the given dataframe
@@ -154,6 +275,9 @@ class IStrategy(ABC):
         :param metadata: Additional information, like the currently traded pair
         :return: DataFrame with sell column
         """
+        dataframe['sell'] = 0
+
+        return dataframe
 
     def check_buy_timeout(self, pair: str, trade: Trade, order: dict, **kwargs) -> bool:
         """
@@ -318,9 +442,7 @@ class IStrategy(ABC):
 
         try:
             df_len, df_close, df_date = self.preserve_df(dataframe)
-            dataframe = strategy_safe_wrapper(
-                self._analyze_ticker_internal, message=""
-                )(dataframe, {'pair': pair})
+            dataframe = self._analyze_ticker_internal(dataframe, {'pair': pair})
             self.assert_df(dataframe, df_len, df_close, df_date)
         except StrategyError as error:
             logger.warning(f"Unable to analyze candle (OHLCV) data for pair {pair}: {error}")
@@ -348,10 +470,6 @@ class IStrategy(ABC):
             return False, False
 
         (buy, sell) = latest[SignalType.BUY.value] == 1, latest[SignalType.SELL.value] == 1
-
-        if buy:
-            currency = pair.split('/')[0]
-            dataframe.to_csv(f"user_data/csv_logs/{currency}-{latest_date.format('YYYY-MM-DD-HHMM')}.csv", index=False)
 
         logger.debug(
             'trigger: %s (pair=%s) buy=%s sell=%s',
@@ -504,10 +622,7 @@ class IStrategy(ABC):
         # 10 minutes (Convert to UTC-3) have passed and we seek profits greater than 0.007%
         sell = (trade_dur - 180) >= 10 and current_profit > 0.007
 
-        if (trade_dur - 180) > 900 and current_profit > -0.02:
-            sell = True
-
-        if (trade_dur - 180) > 1400 and current_profit > -0.04:
+        if (trade_dur - 180) > 1400 and current_profit > -0.02:
             sell = True
 
         return sell
@@ -540,19 +655,15 @@ class IStrategy(ABC):
 
     def advise_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
-        Populate indicators that will be used in the Buy and Sell strategy
+        Populate indicators that will be used in the Machine learning model
         This method should not be overridden.
         :param dataframe: Dataframe with data from the exchange
         :param metadata: Additional information, like the currently traded pair
         :return: a Dataframe with all mandatory indicators for the strategies
         """
         logger.debug(f"Populating indicators for pair {metadata.get('pair')}.")
-        if self._populate_fun_len == 2:
-            warnings.warn("deprecated - check out the Sample strategy to see "
-                          "the current function headers!", DeprecationWarning)
-            return self.populate_indicators(dataframe)  # type: ignore
-        else:
-            return self.populate_indicators(dataframe, metadata)
+
+        return self.populate_indicators(dataframe, metadata)
 
     def advise_buy(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
@@ -563,12 +674,8 @@ class IStrategy(ABC):
         :return: DataFrame with buy column
         """
         logger.debug(f"Populating buy signals for pair {metadata.get('pair')}.")
-        if self._buy_fun_len == 2:
-            warnings.warn("deprecated - check out the Sample strategy to see "
-                          "the current function headers!", DeprecationWarning)
-            return self.populate_buy_trend(dataframe)  # type: ignore
-        else:
-            return self.populate_buy_trend(dataframe, metadata)
+        
+        return self.populate_buy_trend(dataframe, metadata)  # type: ignore
 
     def advise_sell(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         """
@@ -578,10 +685,6 @@ class IStrategy(ABC):
         :param pair: Additional information, like the currently traded pair
         :return: DataFrame with sell column
         """
-        logger.debug(f"Populating sell signals for pair {metadata.get('pair')}.")
-        if self._sell_fun_len == 2:
-            warnings.warn("deprecated - check out the Sample strategy to see "
-                          "the current function headers!", DeprecationWarning)
-            return self.populate_sell_trend(dataframe)  # type: ignore
-        else:
-            return self.populate_sell_trend(dataframe, metadata)
+        logger.debug(f"Populating fake sell signals for pair {metadata.get('pair')}.")
+
+        return self.populate_sell_trend(dataframe, metadata)

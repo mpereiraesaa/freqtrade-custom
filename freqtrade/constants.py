@@ -33,6 +33,8 @@ DEFAULT_TRADES_COLUMNS = ['timestamp', 'id', 'type', 'side', 'price', 'amount', 
 
 USERPATH_HYPEROPTS = 'hyperopts'
 USERPATH_STRATEGIES = 'strategies'
+USERPATH_MODELS = 'models'
+USERPATH_TWEETS = 'tweets'
 USERPATH_NOTEBOOKS = 'notebooks'
 
 # Soure files with destination directories within user-directory
