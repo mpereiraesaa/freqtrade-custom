@@ -261,6 +261,8 @@ class IStrategy:
 
         buy = clf.predict(x)[0]
 
+        logger.info(f"Pair {str(pair)} X.shape {str(x.shape)} predicted value: {str(buy)} x: {str(x)}")
+
         pred_column = [0] * len(dataframe)
         pred_column[-1] = buy
 
