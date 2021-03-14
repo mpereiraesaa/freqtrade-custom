@@ -178,31 +178,33 @@ class BestPairList(IPairList):
                 self.log_on_refresh(logger.info, f"{pair} 99% conf level VaR: {returns_df['returns'].quantile(0.01)}")
 
                 # VaR ratio 99% confidence level. Possible losses must be lower than -0.03 to stay safe.
-                if returns_df['returns'].quantile(0.01) < -0.05:
-                    continue
+                # if returns_df['returns'].quantile(0.01) < -0.05:
+                #     continue
 
-                bullish = []
-                bearish = []
+                # bullish = []
+                # bearish = []
 
-                ohlcv_hourly = ohlcv_hourly.dropna()
+                # ohlcv_hourly = ohlcv_hourly.dropna()
 
-                if len(ohlcv_hourly) == 0:
-                    continue
+                # if len(ohlcv_hourly) == 0:
+                #     continue
 
-                for pattern in candlestick_patterns:
-                    pattern_function = getattr(talib, pattern)
-                    data = pattern_function(ohlcv_hourly['open'], ohlcv_hourly['high'], ohlcv_hourly['low'], ohlcv_hourly['close'])
-                    last = data.tail(1).values[0]
-                    if last > 0:
-                        bullish.append(candlestick_patterns[pattern])
-                    if last < 0:
-                        bearish.append(candlestick_patterns[pattern])
+                # for pattern in candlestick_patterns:
+                #     pattern_function = getattr(talib, pattern)
+                #     data = pattern_function(ohlcv_hourly['open'], ohlcv_hourly['high'], ohlcv_hourly['low'], ohlcv_hourly['close'])
+                #     last = data.tail(1).values[0]
+                #     if last > 0:
+                #         bullish.append(candlestick_patterns[pattern])
+                #     if last < 0:
+                #         bearish.append(candlestick_patterns[pattern])
 
-                if len(bearish) > 0:
-                    continue
+                # if len(bearish) > 0:
+                #     continue
 
-                best_pairs.append(pair)
+                best_pairs.append({ "key": pair, "var": returns_df['returns'].quantile(0.01)})
 
+            best_pairs = sorted(best_pairs, key=lambda x: x['var'], reverse=True)
+            best_pairs = [d['key'] for d in best_pairs]
             pairlist = best_pairs[:15]
         else:
             # Use the cached pairlist if it's not time yet to refresh
