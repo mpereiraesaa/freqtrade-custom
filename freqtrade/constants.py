@@ -62,6 +62,7 @@ MINIMAL_CONFIG = {
         'key': '',
         'secret': '',
         'pair_whitelist': [],
+        'pair_hodllist': [],
         'ccxt_async_config': {
             'enableRateLimit': True,
         }
@@ -261,6 +262,13 @@ CONF_SCHEMA = {
                 'secret': {'type': 'string', 'default': ''},
                 'password': {'type': 'string', 'default': ''},
                 'uid': {'type': 'string'},
+                'pair_hodllist': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'string',
+                    },
+                    'uniqueItems': True
+                },
                 'pair_whitelist': {
                     'type': 'array',
                     'items': {

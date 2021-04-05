@@ -897,6 +897,14 @@ class FreqtradeBot:
         """
         Check and execute sell
         """
+
+        # Avoid SELL if pair is in HODL list.
+        exchange_config = self.config.get('exchange', {})
+        hodl_list = exchange_config.get('pair_hodllist', [])
+
+        if trade.pair in hodl_list:
+            return False
+
         should_sell = self.strategy.should_sell(
             trade, sell_rate, datetime.utcnow(), buy, sell,
             force_stoploss=self.edge.stoploss(trade.pair) if self.edge else 0
