@@ -98,6 +98,7 @@ class Telegram(RPC):
             CommandHandler('reload_conf', self._reload_conf),
             CommandHandler('show_config', self._show_config),
             CommandHandler('stopbuy', self._stopbuy),
+            CommandHandler('max_open_trades', self._max_open_trades),
             CommandHandler('whitelist', self._whitelist),
             CommandHandler('blacklist', self._blacklist),
             CommandHandler('edge', self._edge),
@@ -447,6 +448,22 @@ class Telegram(RPC):
         """
         msg = self._rpc_reload_conf()
         self._send_msg('Status: `{status}`'.format(**msg))
+
+    @authorized_only
+    def _max_open_trades(self, update: Update, context: CallbackContext) -> None:
+        """
+        Handler for /max_open_trades.
+        Sets max_open_trades to whatever the user select
+        :param bot: telegram bot
+        :param update: message update
+        :return: None
+        """
+        max_open_trades = context.args[0] if len(context.args) > 0 else None
+        try:
+            msg = self._rpc_max_open_trades(max_open_trades)
+            self._send_msg('Status: `{status}`'.format(**msg))
+        except RPCException as e:
+            self._send_msg(str(e))
 
     @authorized_only
     def _stopbuy(self, update: Update, context: CallbackContext) -> None:
